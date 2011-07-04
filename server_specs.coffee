@@ -8,6 +8,10 @@ fu_stub =
 mocked_libs = "./fu": fu_stub
 require_stub = (library) -> mocked_libs[library] || require library
 
+mem_rss_stub = 10
+process_stub = 
+  memoryUsage: -> rss: mem_rss_stub
+
 stub_res = -> 
   code: -1, obj: {}
   simpleJSON: (code, obj) -> @code = code; @obj = obj; undefined
@@ -15,9 +19,10 @@ stub_res = ->
     remoteAddress: "some address"
   
 get_sut = -> require("./server")
-init = (sut) -> sut.init( require: require_stub ); sut
+init = (sut) -> sut.init( { require: require_stub, process: process_stub } ); sut
 
 assertStatus = (code) -> (res) -> assert.equal res.code, code
+assertRSS = -> (res) -> assert.equal res.obj.rss, mem_rss_stub 
 
 fu_get = (method, req = { }) -> 
     res = stub_res()
@@ -56,6 +61,11 @@ vows
         init @sut
         fu_get 'join', { url: '/join?nick=jim' }
 
+      'returns status 200': assertStatus 200
+      'returns session id': (res) -> assert.isTrue res.obj.id > 0
+      'returns nick: jim': (res) -> assert.equal res.obj.nick, 'jim'
+      'returns rss mem usage': assertRSS()
+
       'and i query /who': 
         topic: -> fu_get 'who' 
           
@@ -74,6 +84,7 @@ vows
         topic: (res) -> fu_get 'part', { url: "/part?id=#{res.obj.id}" }
           
         'returns status 200': assertStatus 200
+        'returns rss mem usage': assertRSS()
         "removes jim's session": -> assert.isEmpty @sut.sessions
 .export module
 

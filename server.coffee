@@ -11,7 +11,7 @@ sys = require "sys"
 
 
 get_type = (thing) ->
-    if thing ==null then return "[object Null]"
+    if thing == null then return "[object Null]"
     Object.prototype.toString.call(thing)
 
 
@@ -88,13 +88,23 @@ createSession = (nick) ->
 server.sessions = sessions 
 
 server.init = (config) ->
+  # allow injecting fakes
   require = config.require || require
+  process = config.process || process
 
+  # no fakes required for these
   fu = require "./fu"
   qs = require "querystring"
   url = require "url"
 
   startTime = (new Date).getTime()
+
+  mem = null
+  updateMemory = -> mem = process.memoryUsage()
+
+  updateMemory() 
+
+  setInterval updateMemory, 10 * 1000 
 
   fu.get "/join", (req, res) ->
     nick = qs.parse(url.parse(req.url).query).nick
