@@ -85,8 +85,6 @@ createSession = (nick) ->
   session
 
 
-server.sessions = sessions 
-
 server.init = (config) ->
   # allow injecting fakes
   require = config.require || require
