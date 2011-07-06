@@ -95,6 +95,7 @@ server.init = (config) ->
   qs = require "querystring"
   url = require "url"
 
+  sessions = {}
   startTime = (new Date).getTime()
 
   mem = null

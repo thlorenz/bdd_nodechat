@@ -51,3 +51,11 @@ describe 'given a chat server with no sessios', ->
     
     it 'has code 400', -> expect(@res).hasCode 400
     it 'warns about bad nick', -> expect(@res.obj.error).toContain "nick"
+ 
+  describe 'when jim joins', ->
+    beforeEach -> @res = @fu_get 'join', { url: '/join?nick=jim' } 
+
+    it 'has code 200', -> expect(@res).hasCode 200
+    it 'returns session id', -> expect(@res.obj.id).toBeGreaterThan 0
+    it 'returns nick: jim', -> expect(@res.obj.nick).toEqual 'jim'
+    it 'returns mem usage', -> expect(@res).hasRSS()
