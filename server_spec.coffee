@@ -11,6 +11,7 @@ beforeEach ->
     hasCode: (code) -> @actual.code is code
     hasRSS: -> @actual.obj.rss is mem_rss_stub
     isEmpty: -> @actual.length is 0
+    toContainOnly: (item) -> @actual.length is 1 and @actual[0] = item
 
   @fu_stub = 
     gets: {}
@@ -39,7 +40,7 @@ describe 'given a chat server with no sessios', ->
     beforeEach -> @res = @fu_get 'who'
     
     it 'has code 200', -> expect(@res).hasCode 200
-    it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty
+    it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty()
 
   describe 'and someone parts', ->
     beforeEach -> @res = @fu_get 'part', { url: 'part?id=1' }
@@ -59,3 +60,17 @@ describe 'given a chat server with no sessios', ->
     it 'returns session id', -> expect(@res.obj.id).toBeGreaterThan 0
     it 'returns nick: jim', -> expect(@res.obj.nick).toEqual 'jim'
     it 'returns mem usage', -> expect(@res).hasRSS()
+
+    describe 'and i ask who is connected', ->
+      beforeEach -> @res = @fu_get 'who'
+
+      it 'has code 200', -> expect(@res).hasCode 200
+      it 'returns jim only', -> expect(@res.obj.nicks).toContainOnly 'jim'
+
+    describe 'and some other jim tries to join'  , ->
+      beforeEach -> @res = @fu_get 'join', { url: '/join?nick=jim' } 
+
+      it 'has code 400', -> expect(@res).hasCode 400
+      it 'warns about nick in use', -> expect(@res.obj.error).toContain 'in use'
+
+
