@@ -102,4 +102,38 @@ describe 'given a chat server with no sessios', ->
         it 'has code 200', -> expect(@res).hasCode 200
         it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty()
 
+    describe 'and someone unknown sends a message', ->
+      beforeEach -> @res = @fu_get 'send', { url: "/send?id=#{@jims_id + 1}&text=some text" }
+      it 'has code 400', -> expect(@res).hasCode 400
+
+    describe 'and jim sends an empty message', ->
+      beforeEach -> @res = @fu_get 'send', { url: "/send?id=#{@jims_id}&text=" }
+      it 'has code 400', -> expect(@res).hasCode 400
+
+    describe 'and jim sends a message', ->
+      beforeEach -> @res = @fu_get 'send', { url: "/send?id=#{@jims_id}&text=some text" }
+      it 'has code 200', -> expect(@res).hasCode 200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -85,12 +85,11 @@ createSession = (nick) ->
   session
 
 
-server.init = (config) ->
-  # allow injecting fakes
-  require = config.require || require
-  process = config.process || process
+server.init = (fake) ->
 
-  # no fakes required for these
+  require = fake.require || require
+  process = fake.process || process
+
   fu = require "./fu"
   qs = require "querystring"
   url = require "url"
@@ -140,4 +139,20 @@ server.init = (config) ->
 
     res.simpleJSON 200, rss: mem.rss
     
+
+  fu.get "/send", (req, res) ->
+    id = qs.parse(url.parse(req.url).query).id
+
+    text = qs.parse(url.parse(req.url).query).text
+    unless text 
+      return res.simpleJSON 400, error: "No empty message allowed"
+
+    session = sessions[id]
+    unless session
+      return res.simpleJSON 400, error: "No session for id #{id}"
+
+    session.poke()
+
+    channel.appendMessage session.nick, "msg", text
+    res.simpleJSON 200, rss: mem.rss
   undefined
