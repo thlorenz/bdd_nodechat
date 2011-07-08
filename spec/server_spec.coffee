@@ -32,7 +32,7 @@ beforeEach ->
   require_stub = (library) -> mocked_libs[library] || require library
 
 
-  @sut = require("./server")
+  @sut = require("./../server")
   @sut.init { require: require_stub, process: process_stub }
 
 describe 'given a chat server with no sessios', ->
@@ -70,7 +70,7 @@ describe 'given a chat server with no sessios', ->
     describe 'and some other jim tries to join'  , ->
       beforeEach -> @res = @fu_get 'join', { url: '/join?nick=jim' } 
 
-      it 'has code 400', -> expect(@res).hasCode 400
+      it 'has code 400', ->   expect(@res).hasCode 400
       it 'warns about nick in use', -> expect(@res.obj.error).toContain 'in use'
 
 
