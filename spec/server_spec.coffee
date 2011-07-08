@@ -54,10 +54,12 @@ describe 'given a chat server with no sessios', ->
     it 'warns about bad nick', -> expect(@res.obj.error).toContain "nick"
  
   describe 'when jim joins', ->
-    beforeEach -> @res = @fu_get 'join', { url: '/join?nick=jim' } 
+    beforeEach ->
+      @res = @fu_get 'join', { url: '/join?nick=jim' } 
+      @jims_id = @res.obj.id
 
     it 'has code 200', -> expect(@res).hasCode 200
-    it 'returns session id', -> expect(@res.obj.id).toBeGreaterThan 0
+    it 'returns session id', -> expect(@jims_id).toBeGreaterThan 0
     it 'returns nick: jim', -> expect(@res.obj.nick).toEqual 'jim'
     it 'returns mem usage', -> expect(@res).hasRSS()
 
@@ -72,5 +74,32 @@ describe 'given a chat server with no sessios', ->
 
       it 'has code 400', ->   expect(@res).hasCode 400
       it 'warns about nick in use', -> expect(@res.obj.error).toContain 'in use'
+
+    describe 'and bob joins as well', ->
+      beforeEach -> @res = @fu_get 'join', { url: '/join?nick=bob' } 
+
+      it 'returns nick: bob', -> expect(@res.obj.nick).toEqual 'bob'
+      
+      describe 'and i ask who is connected', ->
+        beforeEach -> 
+          @res = @fu_get 'who'
+          @nicks = @res.obj.nicks
+
+        it 'has code 200', -> expect(@res).hasCode 200
+        it 'returns exactly 2 nicks', -> expect(@nicks.length).toEqual 2
+        it 'returns jim', ->  expect(@nicks).toContain 'jim'
+        it 'returns bob', -> expect(@nicks).toContain 'bob'
+
+    describe 'and jim parts', ->
+      beforeEach -> @res = @fu_get 'part', { url: "/part?id=#{@jims_id}" }
+
+      it 'has code 200', -> expect(@res).hasCode 200
+      it 'returns mem usage', -> expect(@res).hasRSS()
+
+      describe 'and i ask who is connected', ->
+        beforeEach -> @res = @fu_get 'who'
+        
+        it 'has code 200', -> expect(@res).hasCode 200
+        it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty()
 
 
