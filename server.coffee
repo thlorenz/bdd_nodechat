@@ -76,10 +76,8 @@ createSession = (nick) ->
     poke: -> session.timestamp = new Date
 
     destroy: ->
-      # channel.appendMessage session.nick "part"
+      channel.appendMessage session.nick "part"
       delete sessions[session.id]
-
-    toString: -> "nick: #{@nick} id: #{@id} timestamp: #{@timestamp}"
 
   sessions[session.id] = session
   session

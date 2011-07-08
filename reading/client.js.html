@@ -1,0 +1,525 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/dev/javascript/node/chat/client.js.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="javascript">
+<meta name="settings" content="use_css,number_lines">
+
+</head>
+<body bgcolor="#333333" style="font-family: monospace; color: #ffffff; background-color: #333333;">
+<pre style="font-family: monospace; color: #ffffff; background-color: #333333;">
+<span style="color: #ffff00;">  1 </span><span style="color: #98fb98;">var</span> CONFIG = <span style="color: #98fb98;">{</span> debug: <span style="color: #ffa0a0;">false</span>
+<span style="color: #ffff00;">  2 </span>             , nick: <span style="color: #ffa0a0;">&quot;#&quot;</span>   <span style="color: #87ceeb;">// set in onConnect</span>
+<span style="color: #ffff00;">  3 </span>             , id: <span style="color: #f0e68c; font-weight: bold;">null</span>    <span style="color: #87ceeb;">// set in onConnect</span>
+<span style="color: #ffff00;">  4 </span>             , last_message_time: 1
+<span style="color: #ffff00;">  5 </span>             , focus: <span style="color: #ffa0a0;">true</span> <span style="color: #87ceeb;">//event listeners bound in onConnect</span>
+<span style="color: #ffff00;">  6 </span>             , unread: 0 <span style="color: #87ceeb;">//updated in the message-processing loop</span>
+<span style="color: #ffff00;">  7 </span>             <span style="color: #98fb98;">}</span>;
+<span style="color: #ffff00;">  8 </span>
+<span style="color: #ffff00;">  9 </span><span style="color: #98fb98;">var</span> nicks = <span style="color: #98fb98;">[]</span>;
+<span style="color: #ffff00;"> 10 </span>
+<span style="color: #ffff00;"> 11 </span><span style="color: #87ceeb;">//  CUT  ///////////////////////////////////////////////////////////////////</span>
+<span style="color: #ffff00;"> 12 </span><span style="color: #87ceeb;">/* This license and copyright apply to all code until the next &quot;CUT&quot;</span>
+<span style="color: #ffff00;"> 13 </span><span style="color: #87ceeb;"><a href="http://github.com/jherdman/javascript-relative-time-helpers/">http://github.com/jherdman/javascript-relative-time-helpers/</a></span>
+<span style="color: #ffff00;"> 14 </span>
+<span style="color: #ffff00;"> 15 </span><span style="color: #87ceeb;">The MIT License</span>
+<span style="color: #ffff00;"> 16 </span>
+<span style="color: #ffff00;"> 17 </span><span style="color: #87ceeb;">Copyright (c) 2009 James F. Herdman</span>
+<span style="color: #ffff00;"> 18 </span>
+<span style="color: #ffff00;"> 19 </span><span style="color: #87ceeb;">Permission is hereby granted, free of charge, to any person obtaining a copy of</span>
+<span style="color: #ffff00;"> 20 </span><span style="color: #87ceeb;">this software and associated documentation files (the &quot;Software&quot;), to deal in</span>
+<span style="color: #ffff00;"> 21 </span><span style="color: #87ceeb;">the Software without restriction, including without limitation the rights to</span>
+<span style="color: #ffff00;"> 22 </span><span style="color: #87ceeb;">use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies</span>
+<span style="color: #ffff00;"> 23 </span><span style="color: #87ceeb;">of the Software, and to permit persons to whom the Software is furnished to do</span>
+<span style="color: #ffff00;"> 24 </span><span style="color: #87ceeb;">so, subject to the following conditions:</span>
+<span style="color: #ffff00;"> 25 </span>
+<span style="color: #ffff00;"> 26 </span><span style="color: #87ceeb;">The above copyright notice and this permission notice shall be included in all</span>
+<span style="color: #ffff00;"> 27 </span><span style="color: #87ceeb;">copies or substantial portions of the Software.</span>
+<span style="color: #ffff00;"> 28 </span>
+<span style="color: #ffff00;"> 29 </span><span style="color: #87ceeb;">THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR</span>
+<span style="color: #ffff00;"> 30 </span><span style="color: #87ceeb;">IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,</span>
+<span style="color: #ffff00;"> 31 </span><span style="color: #87ceeb;">FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE</span>
+<span style="color: #ffff00;"> 32 </span><span style="color: #87ceeb;">AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER</span>
+<span style="color: #ffff00;"> 33 </span><span style="color: #87ceeb;">LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,</span>
+<span style="color: #ffff00;"> 34 </span><span style="color: #87ceeb;">OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE</span>
+<span style="color: #ffff00;"> 35 </span><span style="color: #87ceeb;">SOFTWARE.</span>
+<span style="color: #ffff00;"> 36 </span>
+<span style="color: #ffff00;"> 37 </span>
+<span style="color: #ffff00;"> 38 </span><span style="color: #87ceeb;"> * Returns a description of this past date in relative terms.</span>
+<span style="color: #ffff00;"> 39 </span><span style="color: #87ceeb;"> * Takes an optional parameter (default: 0) setting the threshold in ms which</span>
+<span style="color: #ffff00;"> 40 </span><span style="color: #87ceeb;"> * is considered &quot;Just now&quot;.</span>
+<span style="color: #ffff00;"> 41 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 42 </span><span style="color: #87ceeb;"> * Examples, where new Date().toString() == &quot;Mon Nov 23 2009 17:36:51 GMT-0500 (EST)&quot;:</span>
+<span style="color: #ffff00;"> 43 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 44 </span><span style="color: #87ceeb;"> * new Date().toRelativeTime()</span>
+<span style="color: #ffff00;"> 45 </span><span style="color: #87ceeb;"> * --&gt; 'Just now'</span>
+<span style="color: #ffff00;"> 46 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 47 </span><span style="color: #87ceeb;"> * new Date(&quot;Nov 21, 2009&quot;).toRelativeTime()</span>
+<span style="color: #ffff00;"> 48 </span><span style="color: #87ceeb;"> * --&gt; '2 days ago'</span>
+<span style="color: #ffff00;"> 49 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 50 </span><span style="color: #87ceeb;"> * // One second ago</span>
+<span style="color: #ffff00;"> 51 </span><span style="color: #87ceeb;"> * new Date(&quot;Nov 23 2009 17:36:50 GMT-0500 (EST)&quot;).toRelativeTime()</span>
+<span style="color: #ffff00;"> 52 </span><span style="color: #87ceeb;"> * --&gt; '1 second ago'</span>
+<span style="color: #ffff00;"> 53 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 54 </span><span style="color: #87ceeb;"> * // One second ago, now setting a now_threshold to 5 seconds</span>
+<span style="color: #ffff00;"> 55 </span><span style="color: #87ceeb;"> * new Date(&quot;Nov 23 2009 17:36:50 GMT-0500 (EST)&quot;).toRelativeTime(5000)</span>
+<span style="color: #ffff00;"> 56 </span><span style="color: #87ceeb;"> * --&gt; 'Just now'</span>
+<span style="color: #ffff00;"> 57 </span><span style="color: #87ceeb;"> *</span>
+<span style="color: #ffff00;"> 58 </span><span style="color: #87ceeb;"> */</span>
+<span style="color: #ffff00;"> 59 </span><span style="color: #bdb76b; font-weight: bold;">Date</span>.prototype.toRelativeTime = <span style="color: #98fb98;">function</span>(now_threshold) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 60 </span>  <span style="color: #98fb98;">var</span> delta = <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>() - <span style="color: #98fb98;">this</span>;
+<span style="color: #ffff00;"> 61 </span>
+<span style="color: #ffff00;"> 62 </span>  now_threshold = parseInt(now_threshold, 10);
+<span style="color: #ffff00;"> 63 </span>
+<span style="color: #ffff00;"> 64 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (isNaN(now_threshold)) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 65 </span>    now_threshold = 0;
+<span style="color: #ffff00;"> 66 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;"> 67 </span>
+<span style="color: #ffff00;"> 68 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (delta &lt;= now_threshold) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 69 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #ffa0a0;">'Just now'</span>;
+<span style="color: #ffff00;"> 70 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;"> 71 </span>
+<span style="color: #ffff00;"> 72 </span>  <span style="color: #98fb98;">var</span> units = <span style="color: #f0e68c; font-weight: bold;">null</span>;
+<span style="color: #ffff00;"> 73 </span>  <span style="color: #98fb98;">var</span> conversions = <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 74 </span>    millisecond: 1, <span style="color: #87ceeb;">// ms    -&gt; ms</span>
+<span style="color: #ffff00;"> 75 </span>    second: 1000,   <span style="color: #87ceeb;">// ms    -&gt; sec</span>
+<span style="color: #ffff00;"> 76 </span>    minute: 60,     <span style="color: #87ceeb;">// sec   -&gt; min</span>
+<span style="color: #ffff00;"> 77 </span>    hour:   60,     <span style="color: #87ceeb;">// min   -&gt; hour</span>
+<span style="color: #ffff00;"> 78 </span>    day:    24,     <span style="color: #87ceeb;">// hour  -&gt; day</span>
+<span style="color: #ffff00;"> 79 </span>    month:  30,     <span style="color: #87ceeb;">// day   -&gt; month (roughly)</span>
+<span style="color: #ffff00;"> 80 </span>    year:   12      <span style="color: #87ceeb;">// month -&gt; year</span>
+<span style="color: #ffff00;"> 81 </span>  <span style="color: #98fb98;">}</span>;
+<span style="color: #ffff00;"> 82 </span>
+<span style="color: #ffff00;"> 83 </span>  <span style="color: #f0e68c; font-weight: bold;">for</span> (<span style="color: #98fb98;">var</span> key <span style="color: #f0e68c; font-weight: bold;">in</span> conversions) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 84 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (delta &lt; conversions<span style="color: #98fb98;">[</span>key<span style="color: #98fb98;">]</span>) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 85 </span>      <span style="color: #f0e68c; font-weight: bold;">break</span>;
+<span style="color: #ffff00;"> 86 </span>    <span style="color: #98fb98;">}</span> <span style="color: #f0e68c; font-weight: bold;">else</span> <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;"> 87 </span>      units = key; <span style="color: #87ceeb;">// keeps track of the selected key over the iteration</span>
+<span style="color: #ffff00;"> 88 </span>      delta = delta / conversions<span style="color: #98fb98;">[</span>key<span style="color: #98fb98;">]</span>;
+<span style="color: #ffff00;"> 89 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;"> 90 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;"> 91 </span>
+<span style="color: #ffff00;"> 92 </span>  <span style="color: #87ceeb;">// pluralize a unit when the difference is greater than 1.</span>
+<span style="color: #ffff00;"> 93 </span>  delta = Math.floor(delta);
+<span style="color: #ffff00;"> 94 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (delta !== 1) <span style="color: #98fb98;">{</span> units += <span style="color: #ffa0a0;">&quot;s&quot;</span>; <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;"> 95 </span>  <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #98fb98;">[</span>delta, units<span style="color: #98fb98;">]</span>.join(<span style="color: #ffa0a0;">&quot; &quot;</span>);
+<span style="color: #ffff00;"> 96 </span><span style="color: #98fb98;">}</span>;
+<span style="color: #ffff00;"> 97 </span>
+<span style="color: #ffff00;"> 98 </span><span style="color: #87ceeb;">/*</span>
+<span style="color: #ffff00;"> 99 </span><span style="color: #87ceeb;"> * Wraps up a common pattern used with this plugin whereby you take a String</span>
+<span style="color: #ffff00;">100 </span><span style="color: #87ceeb;"> * representation of a Date, and want back a date object.</span>
+<span style="color: #ffff00;">101 </span><span style="color: #87ceeb;"> */</span>
+<span style="color: #ffff00;">102 </span><span style="color: #bdb76b; font-weight: bold;">Date</span>.fromString = <span style="color: #98fb98;">function</span>(str) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">103 </span>  <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>(<span style="color: #bdb76b; font-weight: bold;">Date</span>.parse(str));
+<span style="color: #ffff00;">104 </span><span style="color: #98fb98;">}</span>;
+<span style="color: #ffff00;">105 </span>
+<span style="color: #ffff00;">106 </span><span style="color: #87ceeb;">//  CUT  ///////////////////////////////////////////////////////////////////</span>
+<span style="color: #ffff00;">107 </span>
+<span style="color: #ffff00;">108 </span>
+<span style="color: #ffff00;">109 </span>
+<span style="color: #ffff00;">110 </span><span style="color: #87ceeb;">//updates the users link to reflect the number of active users</span>
+<span style="color: #ffff00;">111 </span><span style="color: #98fb98;">function</span> updateUsersLink ( ) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">112 </span>  <span style="color: #98fb98;">var</span> t = nicks.length.toString() + <span style="color: #ffa0a0;">&quot; user&quot;</span>;
+<span style="color: #ffff00;">113 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (nicks.length != 1) t += <span style="color: #ffa0a0;">&quot;s&quot;</span>;
+<span style="color: #ffff00;">114 </span>  $(<span style="color: #ffa0a0;">&quot;#usersLink&quot;</span>).text(t);
+<span style="color: #ffff00;">115 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">116 </span>
+<span style="color: #ffff00;">117 </span><span style="color: #87ceeb;">//handles another person joining chat</span>
+<span style="color: #ffff00;">118 </span><span style="color: #98fb98;">function</span> userJoin(nick, timestamp) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">119 </span>  <span style="color: #87ceeb;">//put it in the stream</span>
+<span style="color: #ffff00;">120 </span>  addMessage(nick, <span style="color: #ffa0a0;">&quot;joined&quot;</span>, timestamp, <span style="color: #ffa0a0;">&quot;join&quot;</span>);
+<span style="color: #ffff00;">121 </span>  <span style="color: #87ceeb;">//if we already know about this user, ignore it</span>
+<span style="color: #ffff00;">122 </span>  <span style="color: #f0e68c; font-weight: bold;">for</span> (<span style="color: #98fb98;">var</span> i = 0; i &lt; nicks.length; i++)
+<span style="color: #ffff00;">123 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (nicks<span style="color: #98fb98;">[</span>i<span style="color: #98fb98;">]</span> == nick) <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">124 </span>  <span style="color: #87ceeb;">//otherwise, add the user to the list</span>
+<span style="color: #ffff00;">125 </span>  nicks.push(nick);
+<span style="color: #ffff00;">126 </span>  <span style="color: #87ceeb;">//update the UI</span>
+<span style="color: #ffff00;">127 </span>  updateUsersLink();
+<span style="color: #ffff00;">128 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">129 </span>
+<span style="color: #ffff00;">130 </span><span style="color: #87ceeb;">//handles someone leaving</span>
+<span style="color: #ffff00;">131 </span><span style="color: #98fb98;">function</span> userPart(nick, timestamp) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">132 </span>  <span style="color: #87ceeb;">//put it in the stream</span>
+<span style="color: #ffff00;">133 </span>  addMessage(nick, <span style="color: #ffa0a0;">&quot;left&quot;</span>, timestamp, <span style="color: #ffa0a0;">&quot;part&quot;</span>);
+<span style="color: #ffff00;">134 </span>  <span style="color: #87ceeb;">//remove the user from the list</span>
+<span style="color: #ffff00;">135 </span>  <span style="color: #f0e68c; font-weight: bold;">for</span> (<span style="color: #98fb98;">var</span> i = 0; i &lt; nicks.length; i++) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">136 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (nicks<span style="color: #98fb98;">[</span>i<span style="color: #98fb98;">]</span> == nick) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">137 </span>      nicks.splice(i,1)
+<span style="color: #ffff00;">138 </span>      <span style="color: #f0e68c; font-weight: bold;">break</span>;
+<span style="color: #ffff00;">139 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">140 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">141 </span>  <span style="color: #87ceeb;">//update the UI</span>
+<span style="color: #ffff00;">142 </span>  updateUsersLink();
+<span style="color: #ffff00;">143 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">144 </span>
+<span style="color: #ffff00;">145 </span><span style="color: #87ceeb;">// utility functions</span>
+<span style="color: #ffff00;">146 </span>
+<span style="color: #ffff00;">147 </span>util = <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">148 </span>  urlRE: <span style="color: #ffa0a0;">/https?:\/\/([-\w\.]+)+(:\d+)?(\/([^\s]*(\?\S+)?)?)?/g</span>,
+<span style="color: #ffff00;">149 </span>
+<span style="color: #ffff00;">150 </span>  <span style="color: #87ceeb;">//  html sanitizer </span>
+<span style="color: #ffff00;">151 </span>  toStaticHTML: <span style="color: #98fb98;">function</span>(inputHtml) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">152 </span>    inputHtml = inputHtml.toString();
+<span style="color: #ffff00;">153 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> inputHtml.replace(<span style="color: #ffa0a0;">/&amp;/g</span>, <span style="color: #ffa0a0;">&quot;&amp;amp;&quot;</span>)
+<span style="color: #ffff00;">154 </span>                    .replace(<span style="color: #ffa0a0;">/&lt;/g</span>, <span style="color: #ffa0a0;">&quot;&amp;lt;&quot;</span>)
+<span style="color: #ffff00;">155 </span>                    .replace(<span style="color: #ffa0a0;">/&gt;/g</span>, <span style="color: #ffa0a0;">&quot;&amp;gt;&quot;</span>);
+<span style="color: #ffff00;">156 </span>  <span style="color: #98fb98;">}</span>,
+<span style="color: #ffff00;">157 </span>
+<span style="color: #ffff00;">158 </span>  <span style="color: #87ceeb;">//pads n with zeros on the left,</span>
+<span style="color: #ffff00;">159 </span>  <span style="color: #87ceeb;">//digits is minimum length of output</span>
+<span style="color: #ffff00;">160 </span>  <span style="color: #87ceeb;">//zeroPad(3, 5); returns &quot;005&quot;</span>
+<span style="color: #ffff00;">161 </span>  <span style="color: #87ceeb;">//zeroPad(2, 500); returns &quot;500&quot;</span>
+<span style="color: #ffff00;">162 </span>  zeroPad: <span style="color: #98fb98;">function</span> (digits, n) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">163 </span>    n = n.toString();
+<span style="color: #ffff00;">164 </span>    <span style="color: #f0e68c; font-weight: bold;">while</span> (n.length &lt; digits)
+<span style="color: #ffff00;">165 </span>      n = <span style="color: #ffa0a0;">'0'</span> + n;
+<span style="color: #ffff00;">166 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> n;
+<span style="color: #ffff00;">167 </span>  <span style="color: #98fb98;">}</span>,
+<span style="color: #ffff00;">168 </span>
+<span style="color: #ffff00;">169 </span>  <span style="color: #87ceeb;">//it is almost 8 o'clock PM here</span>
+<span style="color: #ffff00;">170 </span>  <span style="color: #87ceeb;">//timeString(new Date); returns &quot;19:49&quot;</span>
+<span style="color: #ffff00;">171 </span>  timeString: <span style="color: #98fb98;">function</span> (date) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">172 </span>    <span style="color: #98fb98;">var</span> minutes = date.getMinutes().toString();
+<span style="color: #ffff00;">173 </span>    <span style="color: #98fb98;">var</span> hours = date.getHours().toString();
+<span style="color: #ffff00;">174 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #98fb98;">this</span>.zeroPad(2, hours) + <span style="color: #ffa0a0;">&quot;:&quot;</span> + <span style="color: #98fb98;">this</span>.zeroPad(2, minutes);
+<span style="color: #ffff00;">175 </span>  <span style="color: #98fb98;">}</span>,
+<span style="color: #ffff00;">176 </span>
+<span style="color: #ffff00;">177 </span>  <span style="color: #87ceeb;">//does the argument only contain whitespace?</span>
+<span style="color: #ffff00;">178 </span>  isBlank: <span style="color: #98fb98;">function</span>(text) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">179 </span>    <span style="color: #98fb98;">var</span> blank = <span style="color: #ffa0a0;">/^\s*$/</span>;
+<span style="color: #ffff00;">180 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> (text.match(blank) !== <span style="color: #f0e68c; font-weight: bold;">null</span>);
+<span style="color: #ffff00;">181 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">182 </span><span style="color: #98fb98;">}</span>;
+<span style="color: #ffff00;">183 </span>
+<span style="color: #ffff00;">184 </span><span style="color: #87ceeb;">//used to keep the most recent messages visible</span>
+<span style="color: #ffff00;">185 </span><span style="color: #98fb98;">function</span> scrollDown () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">186 </span>  <span style="color: #f0e68c; font-weight: bold;">window</span>.scrollBy(0, 100000000000000000);
+<span style="color: #ffff00;">187 </span>  $(<span style="color: #ffa0a0;">&quot;#entry&quot;</span>).focus();
+<span style="color: #ffff00;">188 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">189 </span>
+<span style="color: #ffff00;">190 </span><span style="color: #87ceeb;">//inserts an event into the stream for display</span>
+<span style="color: #ffff00;">191 </span><span style="color: #87ceeb;">//the event may be a msg, join or part type</span>
+<span style="color: #ffff00;">192 </span><span style="color: #87ceeb;">//from is the user, text is the body and time is the timestamp, defaulting to now</span>
+<span style="color: #ffff00;">193 </span><span style="color: #87ceeb;">//_class is a css class to apply to the message, usefull for system events</span>
+<span style="color: #ffff00;">194 </span><span style="color: #98fb98;">function</span> addMessage (from, text, time, _class) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">195 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (text === <span style="color: #f0e68c; font-weight: bold;">null</span>)
+<span style="color: #ffff00;">196 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">197 </span>
+<span style="color: #ffff00;">198 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (time == <span style="color: #f0e68c; font-weight: bold;">null</span>) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">199 </span>    <span style="color: #87ceeb;">// if the time is null or undefined, use the current time.</span>
+<span style="color: #ffff00;">200 </span>    time = <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>();
+<span style="color: #ffff00;">201 </span>  <span style="color: #98fb98;">}</span> <span style="color: #f0e68c; font-weight: bold;">else</span> <span style="color: #f0e68c; font-weight: bold;">if</span> ((time <span style="color: #f0e68c; font-weight: bold;">instanceof</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>) === <span style="color: #ffa0a0;">false</span>) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">202 </span>    <span style="color: #87ceeb;">// if it's a timestamp, interpret it</span>
+<span style="color: #ffff00;">203 </span>    time = <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>(time);
+<span style="color: #ffff00;">204 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">205 </span>
+<span style="color: #ffff00;">206 </span>  <span style="color: #87ceeb;">//every message you see is actually a table with 3 cols:</span>
+<span style="color: #ffff00;">207 </span>  <span style="color: #87ceeb;">//  the time,</span>
+<span style="color: #ffff00;">208 </span>  <span style="color: #87ceeb;">//  the person who caused the event,</span>
+<span style="color: #ffff00;">209 </span>  <span style="color: #87ceeb;">//  and the content</span>
+<span style="color: #ffff00;">210 </span>  <span style="color: #98fb98;">var</span> messageElement = $(<span style="color: #f0e68c; font-weight: bold;">document</span>.createElement(<span style="color: #ffa0a0;">&quot;table&quot;</span>));
+<span style="color: #ffff00;">211 </span>
+<span style="color: #ffff00;">212 </span>  messageElement.addClass(<span style="color: #ffa0a0;">&quot;message&quot;</span>);
+<span style="color: #ffff00;">213 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (_class)
+<span style="color: #ffff00;">214 </span>    messageElement.addClass(_class);
+<span style="color: #ffff00;">215 </span>
+<span style="color: #ffff00;">216 </span>  <span style="color: #87ceeb;">// sanitize</span>
+<span style="color: #ffff00;">217 </span>  text = util.toStaticHTML(text);
+<span style="color: #ffff00;">218 </span>
+<span style="color: #ffff00;">219 </span>  <span style="color: #87ceeb;">// If the current user said this, add a special css class</span>
+<span style="color: #ffff00;">220 </span>  <span style="color: #98fb98;">var</span> nick_re = <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">RegExp</span>(CONFIG.nick);
+<span style="color: #ffff00;">221 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (nick_re.exec(text))
+<span style="color: #ffff00;">222 </span>    messageElement.addClass(<span style="color: #ffa0a0;">&quot;personal&quot;</span>);
+<span style="color: #ffff00;">223 </span>
+<span style="color: #ffff00;">224 </span>  <span style="color: #87ceeb;">// replace URLs with links</span>
+<span style="color: #ffff00;">225 </span>  text = text.replace(util.urlRE, <span style="color: #ffa0a0;">'&lt;a target=&quot;_blank&quot; href=&quot;$&amp;&quot;&gt;$&amp;&lt;/a&gt;'</span>);
+<span style="color: #ffff00;">226 </span>
+<span style="color: #ffff00;">227 </span>  <span style="color: #98fb98;">var</span> content = <span style="color: #ffa0a0;">'&lt;tr&gt;'</span>
+<span style="color: #ffff00;">228 </span>              + <span style="color: #ffa0a0;">'  &lt;td class=&quot;date&quot;&gt;'</span> + util.timeString(time) + <span style="color: #ffa0a0;">'&lt;/td&gt;'</span>
+<span style="color: #ffff00;">229 </span>              + <span style="color: #ffa0a0;">'  &lt;td class=&quot;nick&quot;&gt;'</span> + util.toStaticHTML(from) + <span style="color: #ffa0a0;">'&lt;/td&gt;'</span>
+<span style="color: #ffff00;">230 </span>              + <span style="color: #ffa0a0;">'  &lt;td class=&quot;msg-text&quot;&gt;'</span> + text  + <span style="color: #ffa0a0;">'&lt;/td&gt;'</span>
+<span style="color: #ffff00;">231 </span>              + <span style="color: #ffa0a0;">'&lt;/tr&gt;'</span>
+<span style="color: #ffff00;">232 </span>              ;
+<span style="color: #ffff00;">233 </span>  messageElement.html(content);
+<span style="color: #ffff00;">234 </span>
+<span style="color: #ffff00;">235 </span>  <span style="color: #87ceeb;">//the log is the stream that we view</span>
+<span style="color: #ffff00;">236 </span>  $(<span style="color: #ffa0a0;">&quot;#log&quot;</span>).append(messageElement);
+<span style="color: #ffff00;">237 </span>
+<span style="color: #ffff00;">238 </span>  <span style="color: #87ceeb;">//always view the most recent message when it is added</span>
+<span style="color: #ffff00;">239 </span>  scrollDown();
+<span style="color: #ffff00;">240 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">241 </span>
+<span style="color: #ffff00;">242 </span><span style="color: #98fb98;">function</span> updateRSS () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">243 </span>  <span style="color: #98fb98;">var</span> bytes = parseInt(rss);
+<span style="color: #ffff00;">244 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (bytes) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">245 </span>    <span style="color: #98fb98;">var</span> megabytes = bytes / (1024*1024);
+<span style="color: #ffff00;">246 </span>    megabytes = Math.round(megabytes*10)/10;
+<span style="color: #ffff00;">247 </span>    $(<span style="color: #ffa0a0;">&quot;#rss&quot;</span>).text(megabytes.toString());
+<span style="color: #ffff00;">248 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">249 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">250 </span>
+<span style="color: #ffff00;">251 </span><span style="color: #98fb98;">function</span> updateUptime () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">252 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (starttime) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">253 </span>    $(<span style="color: #ffa0a0;">&quot;#uptime&quot;</span>).text(starttime.toRelativeTime());
+<span style="color: #ffff00;">254 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">255 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">256 </span>
+<span style="color: #ffff00;">257 </span><span style="color: #98fb98;">var</span> transmission_errors = 0;
+<span style="color: #ffff00;">258 </span><span style="color: #98fb98;">var</span> first_poll = <span style="color: #ffa0a0;">true</span>;
+<span style="color: #ffff00;">259 </span>
+<span style="color: #ffff00;">260 </span>
+<span style="color: #ffff00;">261 </span><span style="color: #87ceeb;">//process updates if we have any, request updates from the server,</span>
+<span style="color: #ffff00;">262 </span><span style="color: #87ceeb;">// and call again with response. the last part is like recursion except the call</span>
+<span style="color: #ffff00;">263 </span><span style="color: #87ceeb;">// is being made from the response handler, and not at some point during the</span>
+<span style="color: #ffff00;">264 </span><span style="color: #87ceeb;">// function's execution.</span>
+<span style="color: #ffff00;">265 </span><span style="color: #98fb98;">function</span> longPoll (data) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">266 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (transmission_errors &gt; 2) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">267 </span>    showConnect();
+<span style="color: #ffff00;">268 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">269 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">270 </span>
+<span style="color: #ffff00;">271 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (data &amp;&amp; data.rss) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">272 </span>    rss = data.rss;
+<span style="color: #ffff00;">273 </span>    updateRSS();
+<span style="color: #ffff00;">274 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">275 </span>
+<span style="color: #ffff00;">276 </span>  <span style="color: #87ceeb;">//process any updates we may have</span>
+<span style="color: #ffff00;">277 </span>  <span style="color: #87ceeb;">//data will be null on the first call of longPoll</span>
+<span style="color: #ffff00;">278 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (data &amp;&amp; data.messages) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">279 </span>    <span style="color: #f0e68c; font-weight: bold;">for</span> (<span style="color: #98fb98;">var</span> i = 0; i &lt; data.messages.length; i++) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">280 </span>      <span style="color: #98fb98;">var</span> message = data.messages<span style="color: #98fb98;">[</span>i<span style="color: #98fb98;">]</span>;
+<span style="color: #ffff00;">281 </span>
+<span style="color: #ffff00;">282 </span>      <span style="color: #87ceeb;">//track oldest message so we only request newer messages from server</span>
+<span style="color: #ffff00;">283 </span>      <span style="color: #f0e68c; font-weight: bold;">if</span> (message.timestamp &gt; CONFIG.last_message_time)
+<span style="color: #ffff00;">284 </span>        CONFIG.last_message_time = message.timestamp;
+<span style="color: #ffff00;">285 </span>
+<span style="color: #ffff00;">286 </span>      <span style="color: #87ceeb;">//dispatch new messages to their appropriate handlers</span>
+<span style="color: #ffff00;">287 </span>      <span style="color: #f0e68c; font-weight: bold;">switch</span> (message.type) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">288 </span>        <span style="color: #f0e68c; font-weight: bold;">case</span> <span style="color: #ffa0a0;">&quot;msg&quot;</span>:
+<span style="color: #ffff00;">289 </span>          <span style="color: #f0e68c; font-weight: bold;">if</span>(!CONFIG.focus)<span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">290 </span>            CONFIG.unread++;
+<span style="color: #ffff00;">291 </span>          <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">292 </span>          addMessage(message.nick, message.text, message.timestamp);
+<span style="color: #ffff00;">293 </span>          <span style="color: #f0e68c; font-weight: bold;">break</span>;
+<span style="color: #ffff00;">294 </span>
+<span style="color: #ffff00;">295 </span>        <span style="color: #f0e68c; font-weight: bold;">case</span> <span style="color: #ffa0a0;">&quot;join&quot;</span>:
+<span style="color: #ffff00;">296 </span>          userJoin(message.nick, message.timestamp);
+<span style="color: #ffff00;">297 </span>          <span style="color: #f0e68c; font-weight: bold;">break</span>;
+<span style="color: #ffff00;">298 </span>
+<span style="color: #ffff00;">299 </span>        <span style="color: #f0e68c; font-weight: bold;">case</span> <span style="color: #ffa0a0;">&quot;part&quot;</span>:
+<span style="color: #ffff00;">300 </span>          userPart(message.nick, message.timestamp);
+<span style="color: #ffff00;">301 </span>          <span style="color: #f0e68c; font-weight: bold;">break</span>;
+<span style="color: #ffff00;">302 </span>      <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">303 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">304 </span>    <span style="color: #87ceeb;">//update the document title to include unread message count if blurred</span>
+<span style="color: #ffff00;">305 </span>    updateTitle();
+<span style="color: #ffff00;">306 </span>
+<span style="color: #ffff00;">307 </span>    <span style="color: #87ceeb;">//only after the first request for messages do we want to show who is here</span>
+<span style="color: #ffff00;">308 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (first_poll) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">309 </span>      first_poll = <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">310 </span>      who();
+<span style="color: #ffff00;">311 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">312 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">313 </span>
+<span style="color: #ffff00;">314 </span>  <span style="color: #87ceeb;">//make another request</span>
+<span style="color: #ffff00;">315 </span>  $.ajax(<span style="color: #98fb98;">{</span> cache: <span style="color: #ffa0a0;">false</span>
+<span style="color: #ffff00;">316 </span>         , type: <span style="color: #ffa0a0;">&quot;GET&quot;</span>
+<span style="color: #ffff00;">317 </span>         , url: <span style="color: #ffa0a0;">&quot;/recv&quot;</span>
+<span style="color: #ffff00;">318 </span>         , dataType: <span style="color: #ffa0a0;">&quot;json&quot;</span>
+<span style="color: #ffff00;">319 </span>         , data: <span style="color: #98fb98;">{</span> since: CONFIG.last_message_time, id: CONFIG.id <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">320 </span>         , error: <span style="color: #98fb98;">function</span> () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">321 </span>             addMessage(<span style="color: #ffa0a0;">&quot;&quot;</span>, <span style="color: #ffa0a0;">&quot;long poll error. trying again...&quot;</span>, <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>(), <span style="color: #ffa0a0;">&quot;error&quot;</span>);
+<span style="color: #ffff00;">322 </span>             transmission_errors += 1;
+<span style="color: #ffff00;">323 </span>             <span style="color: #87ceeb;">//don't flood the servers on error, wait 10 seconds before retrying</span>
+<span style="color: #ffff00;">324 </span>             setTimeout(longPoll, 10*1000);
+<span style="color: #ffff00;">325 </span>           <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">326 </span>         , success: <span style="color: #98fb98;">function</span> (data) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">327 </span>             transmission_errors = 0;
+<span style="color: #ffff00;">328 </span>             <span style="color: #87ceeb;">//if everything went well, begin another request immediately</span>
+<span style="color: #ffff00;">329 </span>             <span style="color: #87ceeb;">//the server will take a long time to respond</span>
+<span style="color: #ffff00;">330 </span>             <span style="color: #87ceeb;">//how long? well, it will wait until there is another message</span>
+<span style="color: #ffff00;">331 </span>             <span style="color: #87ceeb;">//and then it will return it to us and close the connection.</span>
+<span style="color: #ffff00;">332 </span>             <span style="color: #87ceeb;">//since the connection is closed when we get data, we longPoll again</span>
+<span style="color: #ffff00;">333 </span>             longPoll(data);
+<span style="color: #ffff00;">334 </span>           <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">335 </span>         <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">336 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">337 </span>
+<span style="color: #ffff00;">338 </span><span style="color: #87ceeb;">//submit a new message to the server</span>
+<span style="color: #ffff00;">339 </span><span style="color: #98fb98;">function</span> send(msg) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">340 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (CONFIG.debug === <span style="color: #ffa0a0;">false</span>) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">341 </span>    <span style="color: #87ceeb;">// </span><span style="color: #ff4500; background-color: #eeee00;">XXX</span><span style="color: #87ceeb;"> should be POST</span>
+<span style="color: #ffff00;">342 </span>    <span style="color: #87ceeb;">// </span><span style="color: #ff4500; background-color: #eeee00;">XXX</span><span style="color: #87ceeb;"> should add to messages immediately</span>
+<span style="color: #ffff00;">343 </span>    jQuery.get(<span style="color: #ffa0a0;">&quot;/send&quot;</span>, <span style="color: #98fb98;">{</span>id: CONFIG.id, text: msg<span style="color: #98fb98;">}</span>, <span style="color: #98fb98;">function</span> (data) <span style="color: #98fb98;">{</span> <span style="color: #98fb98;">}</span>, <span style="color: #ffa0a0;">&quot;json&quot;</span>);
+<span style="color: #ffff00;">344 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">345 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">346 </span>
+<span style="color: #ffff00;">347 </span><span style="color: #87ceeb;">//Transition the page to the state that prompts the user for a nickname</span>
+<span style="color: #ffff00;">348 </span><span style="color: #98fb98;">function</span> showConnect () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">349 </span>  $(<span style="color: #ffa0a0;">&quot;#connect&quot;</span>).show();
+<span style="color: #ffff00;">350 </span>  $(<span style="color: #ffa0a0;">&quot;#loading&quot;</span>).hide();
+<span style="color: #ffff00;">351 </span>  $(<span style="color: #ffa0a0;">&quot;#toolbar&quot;</span>).hide();
+<span style="color: #ffff00;">352 </span>  $(<span style="color: #ffa0a0;">&quot;#nickInput&quot;</span>).focus();
+<span style="color: #ffff00;">353 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">354 </span>
+<span style="color: #ffff00;">355 </span><span style="color: #87ceeb;">//transition the page to the loading screen</span>
+<span style="color: #ffff00;">356 </span><span style="color: #98fb98;">function</span> showLoad () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">357 </span>  $(<span style="color: #ffa0a0;">&quot;#connect&quot;</span>).hide();
+<span style="color: #ffff00;">358 </span>  $(<span style="color: #ffa0a0;">&quot;#loading&quot;</span>).show();
+<span style="color: #ffff00;">359 </span>  $(<span style="color: #ffa0a0;">&quot;#toolbar&quot;</span>).hide();
+<span style="color: #ffff00;">360 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">361 </span>
+<span style="color: #ffff00;">362 </span><span style="color: #87ceeb;">//transition the page to the main chat view, putting the cursor in the textfield</span>
+<span style="color: #ffff00;">363 </span><span style="color: #98fb98;">function</span> showChat (nick) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">364 </span>  $(<span style="color: #ffa0a0;">&quot;#toolbar&quot;</span>).show();
+<span style="color: #ffff00;">365 </span>  $(<span style="color: #ffa0a0;">&quot;#entry&quot;</span>).focus();
+<span style="color: #ffff00;">366 </span>
+<span style="color: #ffff00;">367 </span>  $(<span style="color: #ffa0a0;">&quot;#connect&quot;</span>).hide();
+<span style="color: #ffff00;">368 </span>  $(<span style="color: #ffa0a0;">&quot;#loading&quot;</span>).hide();
+<span style="color: #ffff00;">369 </span>
+<span style="color: #ffff00;">370 </span>  scrollDown();
+<span style="color: #ffff00;">371 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">372 </span>
+<span style="color: #ffff00;">373 </span><span style="color: #87ceeb;">//we want to show a count of unread messages when the window does not have focus</span>
+<span style="color: #ffff00;">374 </span><span style="color: #98fb98;">function</span> updateTitle()<span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">375 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (CONFIG.unread) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">376 </span>    <span style="color: #f0e68c; font-weight: bold;">document</span>.title = <span style="color: #ffa0a0;">&quot;(&quot;</span> + CONFIG.unread.toString() + <span style="color: #ffa0a0;">&quot;) node chat&quot;</span>;
+<span style="color: #ffff00;">377 </span>  <span style="color: #98fb98;">}</span> <span style="color: #f0e68c; font-weight: bold;">else</span> <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">378 </span>    <span style="color: #f0e68c; font-weight: bold;">document</span>.title = <span style="color: #ffa0a0;">&quot;node chat&quot;</span>;
+<span style="color: #ffff00;">379 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">380 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">381 </span>
+<span style="color: #ffff00;">382 </span><span style="color: #87ceeb;">// daemon start time</span>
+<span style="color: #ffff00;">383 </span><span style="color: #98fb98;">var</span> starttime;
+<span style="color: #ffff00;">384 </span><span style="color: #87ceeb;">// daemon memory usage</span>
+<span style="color: #ffff00;">385 </span><span style="color: #98fb98;">var</span> rss;
+<span style="color: #ffff00;">386 </span>
+<span style="color: #ffff00;">387 </span><span style="color: #87ceeb;">//handle the server's response to our nickname and join request</span>
+<span style="color: #ffff00;">388 </span><span style="color: #98fb98;">function</span> onConnect (session) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">389 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (session.error) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">390 </span>    <span style="color: #f0e68c; font-weight: bold;">alert</span>(<span style="color: #ffa0a0;">&quot;error connecting: &quot;</span> + session.error);
+<span style="color: #ffff00;">391 </span>    showConnect();
+<span style="color: #ffff00;">392 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">393 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">394 </span>
+<span style="color: #ffff00;">395 </span>  CONFIG.nick = session.nick;
+<span style="color: #ffff00;">396 </span>  CONFIG.id   = session.id;
+<span style="color: #ffff00;">397 </span>  starttime   = <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>(session.starttime);
+<span style="color: #ffff00;">398 </span>  rss         = session.rss;
+<span style="color: #ffff00;">399 </span>  updateRSS();
+<span style="color: #ffff00;">400 </span>  updateUptime();
+<span style="color: #ffff00;">401 </span>
+<span style="color: #ffff00;">402 </span>  <span style="color: #87ceeb;">//update the UI to show the chat</span>
+<span style="color: #ffff00;">403 </span>  showChat(CONFIG.nick);
+<span style="color: #ffff00;">404 </span>
+<span style="color: #ffff00;">405 </span>  <span style="color: #87ceeb;">//listen for browser events so we know to update the document title</span>
+<span style="color: #ffff00;">406 </span>  $(<span style="color: #f0e68c; font-weight: bold;">window</span>).bind(<span style="color: #ffa0a0;">&quot;blur&quot;</span>, <span style="color: #98fb98;">function</span>() <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">407 </span>    CONFIG.focus = <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">408 </span>    updateTitle();
+<span style="color: #ffff00;">409 </span>  <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">410 </span>
+<span style="color: #ffff00;">411 </span>  $(<span style="color: #f0e68c; font-weight: bold;">window</span>).bind(<span style="color: #ffa0a0;">&quot;focus&quot;</span>, <span style="color: #98fb98;">function</span>() <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">412 </span>    CONFIG.focus = <span style="color: #ffa0a0;">true</span>;
+<span style="color: #ffff00;">413 </span>    CONFIG.unread = 0;
+<span style="color: #ffff00;">414 </span>    updateTitle();
+<span style="color: #ffff00;">415 </span>  <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">416 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">417 </span>
+<span style="color: #ffff00;">418 </span><span style="color: #87ceeb;">//add a list of present chat members to the stream</span>
+<span style="color: #ffff00;">419 </span><span style="color: #98fb98;">function</span> outputUsers () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">420 </span>  <span style="color: #98fb98;">var</span> nick_string = nicks.length &gt; 0 ? nicks.join(<span style="color: #ffa0a0;">&quot;, &quot;</span>) : <span style="color: #ffa0a0;">&quot;(none)&quot;</span>;
+<span style="color: #ffff00;">421 </span>  addMessage(<span style="color: #ffa0a0;">&quot;users:&quot;</span>, nick_string, <span style="color: #f0e68c; font-weight: bold;">new</span> <span style="color: #bdb76b; font-weight: bold;">Date</span>(), <span style="color: #ffa0a0;">&quot;notice&quot;</span>);
+<span style="color: #ffff00;">422 </span>  <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">423 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">424 </span>
+<span style="color: #ffff00;">425 </span><span style="color: #87ceeb;">//get a list of the users presently in the room, and add it to the stream</span>
+<span style="color: #ffff00;">426 </span><span style="color: #98fb98;">function</span> who () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">427 </span>  jQuery.get(<span style="color: #ffa0a0;">&quot;/who&quot;</span>, <span style="color: #98fb98;">{}</span>, <span style="color: #98fb98;">function</span> (data, <span style="color: #f0e68c; font-weight: bold;">status</span>) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">428 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (<span style="color: #f0e68c; font-weight: bold;">status</span> != <span style="color: #ffa0a0;">&quot;success&quot;</span>) <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">429 </span>    nicks = data.nicks;
+<span style="color: #ffff00;">430 </span>    outputUsers();
+<span style="color: #ffff00;">431 </span>  <span style="color: #98fb98;">}</span>, <span style="color: #ffa0a0;">&quot;json&quot;</span>);
+<span style="color: #ffff00;">432 </span><span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">433 </span>
+<span style="color: #ffff00;">434 </span>$(<span style="color: #f0e68c; font-weight: bold;">document</span>).ready(<span style="color: #98fb98;">function</span>() <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">435 </span>
+<span style="color: #ffff00;">436 </span>  <span style="color: #87ceeb;">//submit new messages when the user hits enter if the message isnt blank</span>
+<span style="color: #ffff00;">437 </span>  $(<span style="color: #ffa0a0;">&quot;#entry&quot;</span>).keypress(<span style="color: #98fb98;">function</span> (e) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">438 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (e.keyCode != 13 <span style="color: #87ceeb;">/* Return */</span>) <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">439 </span>    <span style="color: #98fb98;">var</span> msg = $(<span style="color: #ffa0a0;">&quot;#entry&quot;</span>).attr(<span style="color: #ffa0a0;">&quot;value&quot;</span>).replace(<span style="color: #ffa0a0;">&quot;</span><span style="color: #ffdead;">\n</span><span style="color: #ffa0a0;">&quot;</span>, <span style="color: #ffa0a0;">&quot;&quot;</span>);
+<span style="color: #ffff00;">440 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (!util.isBlank(msg)) send(msg);
+<span style="color: #ffff00;">441 </span>    $(<span style="color: #ffa0a0;">&quot;#entry&quot;</span>).attr(<span style="color: #ffa0a0;">&quot;value&quot;</span>, <span style="color: #ffa0a0;">&quot;&quot;</span>); <span style="color: #87ceeb;">// clear the entry field.</span>
+<span style="color: #ffff00;">442 </span>  <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">443 </span>
+<span style="color: #ffff00;">444 </span>  $(<span style="color: #ffa0a0;">&quot;#usersLink&quot;</span>).click(outputUsers);
+<span style="color: #ffff00;">445 </span>
+<span style="color: #ffff00;">446 </span>  <span style="color: #87ceeb;">//try joining the chat when the user clicks the connect button</span>
+<span style="color: #ffff00;">447 </span>  $(<span style="color: #ffa0a0;">&quot;#connectButton&quot;</span>).click(<span style="color: #98fb98;">function</span> () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">448 </span>    <span style="color: #87ceeb;">//lock the UI while waiting for a response</span>
+<span style="color: #ffff00;">449 </span>    showLoad();
+<span style="color: #ffff00;">450 </span>    <span style="color: #98fb98;">var</span> nick = $(<span style="color: #ffa0a0;">&quot;#nickInput&quot;</span>).attr(<span style="color: #ffa0a0;">&quot;value&quot;</span>);
+<span style="color: #ffff00;">451 </span>
+<span style="color: #ffff00;">452 </span>    <span style="color: #87ceeb;">//dont bother the backend if we fail easy validations</span>
+<span style="color: #ffff00;">453 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (nick.length &gt; 50) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">454 </span>      <span style="color: #f0e68c; font-weight: bold;">alert</span>(<span style="color: #ffa0a0;">&quot;Nick too long. 50 character max.&quot;</span>);
+<span style="color: #ffff00;">455 </span>      showConnect();
+<span style="color: #ffff00;">456 </span>      <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">457 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">458 </span>
+<span style="color: #ffff00;">459 </span>    <span style="color: #87ceeb;">//more validations</span>
+<span style="color: #ffff00;">460 </span>    <span style="color: #f0e68c; font-weight: bold;">if</span> (<span style="color: #ffa0a0;">/[^\w_\-^!]/</span>.exec(nick)) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">461 </span>      <span style="color: #f0e68c; font-weight: bold;">alert</span>(<span style="color: #ffa0a0;">&quot;Bad character in nick. Can only have letters, numbers, and '_', '-', '^', '!'&quot;</span>);
+<span style="color: #ffff00;">462 </span>      showConnect();
+<span style="color: #ffff00;">463 </span>      <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">464 </span>    <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">465 </span>
+<span style="color: #ffff00;">466 </span>    <span style="color: #87ceeb;">//make the actual join request to the server</span>
+<span style="color: #ffff00;">467 </span>    $.ajax(<span style="color: #98fb98;">{</span> cache: <span style="color: #ffa0a0;">false</span>
+<span style="color: #ffff00;">468 </span>           , type: <span style="color: #ffa0a0;">&quot;GET&quot;</span> <span style="color: #87ceeb;">// </span><span style="color: #ff4500; background-color: #eeee00;">XXX</span><span style="color: #87ceeb;"> should be POST</span>
+<span style="color: #ffff00;">469 </span>           , dataType: <span style="color: #ffa0a0;">&quot;json&quot;</span>
+<span style="color: #ffff00;">470 </span>           , url: <span style="color: #ffa0a0;">&quot;/join&quot;</span>
+<span style="color: #ffff00;">471 </span>           , data: <span style="color: #98fb98;">{</span> nick: nick <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">472 </span>           , error: <span style="color: #98fb98;">function</span> () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">473 </span>               <span style="color: #f0e68c; font-weight: bold;">alert</span>(<span style="color: #ffa0a0;">&quot;error connecting to server&quot;</span>);
+<span style="color: #ffff00;">474 </span>               showConnect();
+<span style="color: #ffff00;">475 </span>             <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">476 </span>           , success: onConnect
+<span style="color: #ffff00;">477 </span>           <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">478 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span> <span style="color: #ffa0a0;">false</span>;
+<span style="color: #ffff00;">479 </span>  <span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">480 </span>
+<span style="color: #ffff00;">481 </span>  <span style="color: #87ceeb;">// update the daemon uptime every 10 seconds</span>
+<span style="color: #ffff00;">482 </span>  setInterval(<span style="color: #98fb98;">function</span> () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">483 </span>    updateUptime();
+<span style="color: #ffff00;">484 </span>  <span style="color: #98fb98;">}</span>, 10*1000);
+<span style="color: #ffff00;">485 </span>
+<span style="color: #ffff00;">486 </span>  <span style="color: #f0e68c; font-weight: bold;">if</span> (CONFIG.debug) <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">487 </span>    $(<span style="color: #ffa0a0;">&quot;#loading&quot;</span>).hide();
+<span style="color: #ffff00;">488 </span>    $(<span style="color: #ffa0a0;">&quot;#connect&quot;</span>).hide();
+<span style="color: #ffff00;">489 </span>    scrollDown();
+<span style="color: #ffff00;">490 </span>    <span style="color: #f0e68c; font-weight: bold;">return</span>;
+<span style="color: #ffff00;">491 </span>  <span style="color: #98fb98;">}</span>
+<span style="color: #ffff00;">492 </span>
+<span style="color: #ffff00;">493 </span>  <span style="color: #87ceeb;">// remove fixtures</span>
+<span style="color: #ffff00;">494 </span>  $(<span style="color: #ffa0a0;">&quot;#log table&quot;</span>).remove();
+<span style="color: #ffff00;">495 </span>
+<span style="color: #ffff00;">496 </span>  <span style="color: #87ceeb;">//begin listening for updates right away</span>
+<span style="color: #ffff00;">497 </span>  <span style="color: #87ceeb;">//interestingly, we don't need to join a room to get its updates</span>
+<span style="color: #ffff00;">498 </span>  <span style="color: #87ceeb;">//we just don't show the chat stream to the user until we create a session</span>
+<span style="color: #ffff00;">499 </span>  longPoll();
+<span style="color: #ffff00;">500 </span>
+<span style="color: #ffff00;">501 </span>  showConnect();
+<span style="color: #ffff00;">502 </span><span style="color: #98fb98;">}</span>);
+<span style="color: #ffff00;">503 </span>
+<span style="color: #ffff00;">504 </span><span style="color: #87ceeb;">//if we can, notify the server that we're going away.</span>
+<span style="color: #ffff00;">505 </span>$(<span style="color: #f0e68c; font-weight: bold;">window</span>).unload(<span style="color: #98fb98;">function</span> () <span style="color: #98fb98;">{</span>
+<span style="color: #ffff00;">506 </span>  jQuery.get(<span style="color: #ffa0a0;">&quot;/part&quot;</span>, <span style="color: #98fb98;">{</span>id: CONFIG.id<span style="color: #98fb98;">}</span>, <span style="color: #98fb98;">function</span> (data) <span style="color: #98fb98;">{</span> <span style="color: #98fb98;">}</span>, <span style="color: #ffa0a0;">&quot;json&quot;</span>);
+<span style="color: #ffff00;">507 </span><span style="color: #98fb98;">}</span>);
+</pre>
+</body>
+</html>
+
