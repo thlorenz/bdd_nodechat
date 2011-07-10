@@ -32,8 +32,6 @@ beforeEach ->
     res = @fu_get 'recv', { url: "/recv?since=#{since}&id=#{id}" }
     res.obj.messages
 
-  require_stub = (library) -> mocked_libs[library] || real_require library
-
   @sut = require("./../server")
   @sut.init
     fu: @fu_stub

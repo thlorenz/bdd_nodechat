@@ -7,95 +7,88 @@ PORT = 8001
 MESSAGE_BACKLOG = 200
 SESSION_TIMEOUT = 60 * 1000
 
-sys = require "sys"
-
-channel = new ->
-
-  messages = []
-  callbacks = []
-
-  @reset = ->
-    messages = []
-    callbacks = []
-
-  @appendMessage = (nick, type, text) ->
-    m =
-      nick: nick
-      type: type
-      text: text
-      timestamp: (new Date).getTime()
-    
-    switch type
-      when "msg"  then sys.puts "<#{nick}> #{text}"
-      when "join" then sys.puts "#{nick} joined"
-      when "part" then sys.puts "#{nick} part"
-
-    messages.push m
-
-    callbacks.shift().callback m while callbacks.length > 0
-
-    messages.shift while messages.length > MESSAGE_BACKLOG
-  
-  @query = (since, callback) -> 
-
-    matching = []
-    matching.push message for message in messages when message.timestamp >= since
-
-    if matching.length isnt 0
-      callback matching 
-    else
-      callbacks.push timestamp: new Date, callback: callback
-
-  clearCallbacks = () ->
-    now = new Date
-    while callbacks.length > 0 and now - callbacks[0].timestamp > 30 * 1000
-      callbacks.shift().callback [] 
-
-  # Let old callbacks hang around for up to 30 seconds
-  setInterval clearCallbacks, 3000
-
-  this
-
-mem = rss: 10
-
-sessions = {} 
-
-createSession = (nick) ->
-  if nick.length > 50 then return null
-  if /[^\w_\-^!]/.exec nick then return null
-
-  for id of sessions
-    if sessions[id]?.nick is nick 
-      return null
-
-  session =
-    nick: nick
-    id : Math.floor(Math.random() * 999999999999).toString()
-    timestamp: new Date
-
-    poke: -> session.timestamp = new Date
-
-    destroy: ->
-      channel.appendMessage session.nick, "part"
-      delete sessions[session.id]
-
-  sessions[session.id] = session
-  session
-
-
 server.init = (fake = { }) ->
 
-  # require sys again to allow overriding it in specs
   sys = fake.sys || require "sys"
-
   fu = fake.fu || require "./fu"
   qs = fake.qs || require "querystring"
   url = fake.url || require "url"
-  
+
   process = fake.process || global.process
 
-  sessions = {}
-  channel.reset()
+  mem = rss: 10
+  sessions = {} 
+
+  channel = new ->
+
+    messages = []
+    callbacks = []
+
+    @reset = ->
+      messages = []
+      callbacks = []
+
+    @appendMessage = (nick, type, text) ->
+      m =
+        nick: nick
+        type: type
+        text: text
+        timestamp: (new Date).getTime()
+      
+      switch type
+        when "msg"  then sys.puts "<#{nick}> #{text}"
+        when "join" then sys.puts "#{nick} joined"
+        when "part" then sys.puts "#{nick} part"
+
+      messages.push m
+
+      callbacks.shift().callback m while callbacks.length > 0
+
+      messages.shift while messages.length > MESSAGE_BACKLOG
+    
+    @query = (since, callback) -> 
+
+      matching = []
+      matching.push message for message in messages when message.timestamp >= since
+
+      if matching.length isnt 0
+        callback matching 
+      else
+        callbacks.push timestamp: new Date, callback: callback
+
+    clearCallbacks = () ->
+      now = new Date
+      while callbacks.length > 0 and now - callbacks[0].timestamp > 30 * 1000
+        callbacks.shift().callback [] 
+
+    # Let old callbacks hang around for up to 30 seconds
+    setInterval clearCallbacks, 3000
+
+    this
+
+  createSession = (nick) ->
+    if nick.length > 50 then return null
+    if /[^\w_\-^!]/.exec nick then return null
+
+    for id of sessions
+      if sessions[id]?.nick is nick 
+        return null
+
+    session =
+      nick: nick
+      id : Math.floor(Math.random() * 999999999999).toString()
+      timestamp: new Date
+
+      poke: -> session.timestamp = new Date
+
+      destroy: ->
+        channel.appendMessage session.nick, "part"
+        delete sessions[session.id]
+
+    sessions[session.id] = session
+    session
+
+
   startTime = (new Date).getTime()
 
   mem = null
