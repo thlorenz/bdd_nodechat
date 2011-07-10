@@ -16,59 +16,63 @@ beforeEach ->
     isEmpty: -> @actual.length == 0
     toContainOnly: (item) -> @actual.length is 1 and @actual[0] is item
   
-  @fu_stub = 
-      gets: {}
-      get: (id, callback) -> @gets[id] = callback; undefined
-      listens_on: {}
-      listen: (port, host) -> @listens_on = { port: port, host: host }
-      staticHandler: (file) -> 
+  server_stub = 
+    gets: {}
+    get: (id, callback) -> @gets[id] = callback; undefined
+    listens_on: {}
+    listen: (port, host) -> @listens_on = { port: port, host: host }
+  
+  @server_stub = server_stub 
+  @router_stub =
+    getServer: -> server_stub 
+    staticHandler: (file) -> 
 
   @res_stub =  
     code: -1, obj: {}
-    simpleJSON: (code, obj) -> @code = code; @obj = obj; undefined
+    simpleJson: (code, obj) -> @code = code; @obj = obj; undefined
     connection:
       remoteAddress: "some address"
 
-  @fu_get = (method, req = { }) -> 
+  @server_get = (method, req = { }) -> 
     res = @res_stub 
-    @fu_stub.gets["/#{method}"] req, res
+    @server_stub.gets["/#{method}"] req, res
     res
 
   @query_messages = (since, id) ->
-    res = @fu_get 'recv', { url: "/recv?since=#{since}&id=#{id}" }
+    res = @server_get 'recv', { url: "/recv?since=#{since}&id=#{id}" }
     res.obj.messages
 
   @sut = require("./../server")
   @sut.init
-    fu: @fu_stub
+    router: @router_stub
     sys: { puts: (msg) ->  } # stop sys.puts from cluttering up the test output
     process: process_stub
 
 describe 'given a chat server with no sessions', ->
 
-  it 'listens on the given port', -> expect(@fu_stub.listens_on.port).toEqual port_stub 
-  it 'listens on a host', -> expect(@fu_stub.listens_on.host).not.isEmpty()
+  it 'listens on the given port', -> expect(@server_stub.listens_on.port).toEqual port_stub 
+  it 'listens on a host', -> expect(@server_stub.listens_on.host).not.isEmpty()
 
   describe 'and i ask who is connected', ->
-    beforeEach -> @res = @fu_get 'who'
+    beforeEach -> @res = @server_get 'who'
     
     it 'has code 200', -> expect(@res).hasCode 200
     it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty()
 
   describe 'and someone parts', ->
-    beforeEach -> @res = @fu_get 'part', { url: 'part?id=1' }
+    beforeEach -> @res = @server_get 'part', { url: 'part?id=1' }
 
     it 'has code 200', -> expect(@res).hasCode 200
       
   describe 'and someone with empty nick wants to join', ->
-    beforeEach -> @res = @fu_get 'join', { url: "/join?nick=" }
+    beforeEach -> @res = @server_get 'join', { url: "/join?nick=" }
     
     it 'has code 400', -> expect(@res).hasCode 400
     it 'warns about bad nick', -> expect(@res.obj.error).toContain "nick"
  
   describe 'when jim joins', ->
     beforeEach ->
-      @res = @fu_get 'join', { url: '/join?nick=jim' } 
+      @res = @server_get 'join', { url: '/join?nick=jim' } 
       @jims_id = @res.obj.id
       # tests query immediately (unlike real client), so we'l claim server started a bit ealier
       @server_starttime = @res.obj.starttime - 1 
@@ -80,7 +84,7 @@ describe 'given a chat server with no sessions', ->
     it 'returns server starttime', -> expect(@server_starttime).toBeGreaterThan 0
 
     describe 'and i ask who is connected', ->
-      beforeEach -> @res = @fu_get 'who'
+      beforeEach -> @res = @server_get 'who'
 
       it 'has code 200', -> expect(@res).hasCode 200
       it 'returns jim only', -> expect(@res.obj.nicks).toContainOnly 'jim'
@@ -93,19 +97,19 @@ describe 'given a chat server with no sessions', ->
       it 'message tells me that he joined', -> expect(@messages[0].type).toEqual 'join'
 
     describe 'and some other jim tries to join'  , ->
-      beforeEach -> @res = @fu_get 'join', { url: '/join?nick=jim' } 
+      beforeEach -> @res = @server_get 'join', { url: '/join?nick=jim' } 
 
       it 'has code 400', -> expect(@res).hasCode 400
       it 'warns about nick in use', -> expect(@res.obj.error).toContain 'in use'
 
     describe 'and bob joins as well', ->
-      beforeEach -> @res = @fu_get 'join', { url: '/join?nick=bob' } 
+      beforeEach -> @res = @server_get 'join', { url: '/join?nick=bob' } 
 
       it 'returns nick: bob', -> expect(@res.obj.nick).toEqual 'bob'
       
       describe 'and i ask who is connected', ->
         beforeEach -> 
-          @res = @fu_get 'who'
+          @res = @server_get 'who'
           @nicks = @res.obj.nicks
 
         it 'has code 200', -> expect(@res).hasCode 200
@@ -114,13 +118,13 @@ describe 'given a chat server with no sessions', ->
         it 'returns bob', -> expect(@nicks).toContain 'bob'
 
     describe 'and jim parts', ->
-      beforeEach -> @res = @fu_get 'part', { url: "/part?id=#{@jims_id}" }
+      beforeEach -> @res = @server_get 'part', { url: "/part?id=#{@jims_id}" }
 
       it 'has code 200', -> expect(@res).hasCode 200
       it 'returns mem usage', -> expect(@res).hasRSS()
 
       describe 'and i ask who is connected', ->
-        beforeEach -> @res = @fu_get 'who'
+        beforeEach -> @res = @server_get 'who'
         
         it 'has code 200', -> expect(@res).hasCode 200
         it 'returns no nicks', -> expect(@res.obj.nicks).isEmpty()
@@ -134,17 +138,17 @@ describe 'given a chat server with no sessions', ->
           expect(@messages[1].type).toEqual 'part'
 
     describe 'and someone unknown sends a message', ->
-      beforeEach -> @res = @fu_get 'send', { url: "/send?id=#{@jims_id + 1}&text=some text" }
+      beforeEach -> @res = @server_get 'send', { url: "/send?id=#{@jims_id + 1}&text=some text" }
       it 'has code 400', -> expect(@res).hasCode 400
 
     describe 'and jim sends an empty message', ->
-      beforeEach -> @res = @fu_get 'send', { url: "/send?id=#{@jims_id}&text=" }
+      beforeEach -> @res = @server_get 'send', { url: "/send?id=#{@jims_id}&text=" }
       it 'has code 400', -> expect(@res).hasCode 400
 
     describe 'and jim sends a message', ->
       beforeEach -> 
         @jims_message = "some message"
-        @res = @fu_get 'send', { url: "/send?id=#{@jims_id}&text=#{qs.escape @jims_message}" }
+        @res = @server_get 'send', { url: "/send?id=#{@jims_id}&text=#{qs.escape @jims_message}" }
       it 'has code 200', -> expect(@res).hasCode 200
 
       describe 'and i query all messages of jim since startup', ->

@@ -9,7 +9,9 @@ SESSION_TIMEOUT = 60 * 1000
 server.init = (fake = { }) ->
 
   sys = fake.sys or require "sys"
-  fu = fake.fu or require "./fu"
+  router = fake.router or require("./lib/node-router")
+  server = router.getServer()
+
   qs = fake.qs or require "querystring"
   url = fake.url or require "url"
 
@@ -99,54 +101,54 @@ server.init = (fake = { }) ->
 
   setInterval updateMemory, 10 * 1000 
 
-  fu.listen Number(process.env.PORT or PORT), HOST
+  server.listen Number(process.env.PORT or PORT), HOST
 
-  fu.get "/", fu.staticHandler "index.html"
-  fu.get "/style.css", fu.staticHandler "style.css"
-  fu.get "/client.js", fu.staticHandler "client.js"
-  fu.get "/jquery-1.2.6.min.js", fu.staticHandler "jquery-1.2.6.min.js"
+  server.get "/", router.staticHandler "index.html"
+  server.get "/style.css", router.staticHandler "style.css"
+  server.get "/client.js", router.staticHandler "client.js"
+  server.get "/jquery-1.2.6.min.js", router.staticHandler "jquery-1.2.6.min.js"
 
-  fu.get "/join", (req, res) ->
+  server.get "/join", (req, res) ->
     nick = qs.parse(url.parse(req.url).query).nick
     if nick?.length is 0
-      res.simpleJSON 400, error: "Bad nick"
+      res.simpleJson 400, error: "Bad nick"
       return
 
     session = createSession nick
     if not session? 
-      return res.simpleJSON 400, error: "Nick in use"
+      return res.simpleJson 400, error: "Nick in use"
       
 
     sys.puts "connection: #{nick}@#{res.connection.remoteAddress}"
 
     channel.appendMessage session.nick, "join"
-    res.simpleJSON 200,
+    res.simpleJson 200,
       id: session.id
       nick: session.nick
       rss: mem.rss
       starttime: startTime
 
-  fu.get "/who", (req, res) ->
+  server.get "/who", (req, res) ->
     nicks = []
 
     for id of sessions
       nicks.push sessions[id].nick
 
-    res.simpleJSON 200, { nicks: nicks, rss: mem.rss }
+    res.simpleJson 200, { nicks: nicks, rss: mem.rss }
 
-  fu.get "/part", (req, res) ->
+  server.get "/part", (req, res) ->
     id = qs.parse(url.parse(req.url).query).id
     if id && sessions[id]
       sessions[id].destroy()
 
-    res.simpleJSON 200, rss: mem.rss
+    res.simpleJson 200, rss: mem.rss
     
 
-  fu.get "/recv", (req, res) ->
+  server.get "/recv", (req, res) ->
     since_string = qs.parse(url.parse(req.url).query).since
 
     unless since_string
-      res.simpleJSON 400, error: "Must apply since parameter!"
+      res.simpleJson 400, error: "Must apply since parameter!"
       return
 
     id = qs.parse(url.parse(req.url).query).id
@@ -158,23 +160,23 @@ server.init = (fake = { }) ->
 
     channel.query since, (messages) ->
       if session then session.poke()
-      res.simpleJSON 200,
+      res.simpleJson 200,
         messages: messages
         rss: mem.rss
 
-  fu.get "/send", (req, res) ->
+  server.get "/send", (req, res) ->
     id = qs.parse(url.parse(req.url).query).id
 
     text = qs.parse(url.parse(req.url).query).text
     unless text 
-      return res.simpleJSON 400, error: "No empty message allowed"
+      return res.simpleJson 400, error: "No empty message allowed"
 
     session = sessions[id]
     unless session
-      return res.simpleJSON 400, error: "No session for id #{id}"
+      return res.simpleJson 400, error: "No session for id #{id}"
 
     session.poke()
 
     channel.appendMessage session.nick, "msg", text
-    res.simpleJSON 200, rss: mem.rss
+    res.simpleJson 200, rss: mem.rss
   undefined
