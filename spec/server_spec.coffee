@@ -14,7 +14,7 @@ beforeEach ->
     hasCode: (code) -> @actual.code is code
     hasRSS: -> @actual.obj.rss is mem_rss_stub
     isEmpty: -> @actual.length == 0
-    toContainOnly: (item) -> @actual.length is 1 and @actual[0] = item
+    toContainOnly: (item) -> @actual.length is 1 and @actual[0] is item
   
   @fu_stub = 
       gets: {}
