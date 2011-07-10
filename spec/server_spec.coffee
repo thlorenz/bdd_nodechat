@@ -13,7 +13,7 @@ beforeEach ->
   @addMatchers
     hasCode: (code) -> @actual.code is code
     hasRSS: -> @actual.obj.rss is mem_rss_stub
-    isEmpty: -> if @actual.length? then @actual.length is 0 else @actual == "" 
+    isEmpty: -> @actual.length == 0
     toContainOnly: (item) -> @actual.length is 1 and @actual[0] = item
   
   @fu_stub = 
