@@ -9,15 +9,14 @@ SESSION_TIMEOUT = 60 * 1000
 
 sys = require "sys"
 
-
-get_type = (thing) ->
-    if thing == null then return "[object Null]"
-    Object.prototype.toString.call(thing)
-
-
 channel = new ->
+
   messages = []
   callbacks = []
+
+  @reset = ->
+    messages = []
+    callbacks = []
 
   @appendMessage = (nick, type, text) ->
     m =
@@ -38,8 +37,9 @@ channel = new ->
     messages.shift while messages.length > MESSAGE_BACKLOG
   
   @query = (since, callback) -> 
+
     matching = []
-    matching.push message for message in messages when message.timestamp > since
+    matching.push message for message in messages when message.timestamp >= since
 
     if matching.length isnt 0
       callback matching 
@@ -69,30 +69,33 @@ createSession = (nick) ->
       return null
 
   session =
-    nick :nick
+    nick: nick
     id : Math.floor(Math.random() * 999999999999).toString()
     timestamp: new Date
 
     poke: -> session.timestamp = new Date
 
     destroy: ->
-      channel.appendMessage session.nick "part"
+      channel.appendMessage session.nick, "part"
       delete sessions[session.id]
 
   sessions[session.id] = session
   session
 
 
-server.init = (fake) ->
+server.init = (fake = { }) ->
 
-  require = fake.require || require
-  process = fake.process || process
+  # require sys again to allow overriding it in specs
+  sys = fake.sys || require "sys"
 
-  fu = require "./fu"
-  qs = require "querystring"
-  url = require "url"
+  fu = fake.fu || require "./fu"
+  qs = fake.qs || require "querystring"
+  url = fake.url || require "url"
+  
+  process = fake.process || global.process
 
   sessions = {}
+  channel.reset()
   startTime = (new Date).getTime()
 
   mem = null
@@ -137,6 +140,26 @@ server.init = (fake) ->
 
     res.simpleJSON 200, rss: mem.rss
     
+
+  fu.get "/recv", (req, res) ->
+    since_string = qs.parse(url.parse(req.url).query).since
+
+    unless since_string
+      res.simpleJSON 400, error: "Must apply since parameter!"
+      return
+
+    id = qs.parse(url.parse(req.url).query).id
+    if id && sessions[id]
+      session = sessions[id]
+      session.poke()
+
+    since = parseInt since_string, 10
+
+    channel.query since, (messages) ->
+      if session then session.poke()
+      res.simpleJSON 200,
+        messages: messages
+        rss: mem.rss
 
   fu.get "/send", (req, res) ->
     id = qs.parse(url.parse(req.url).query).id
