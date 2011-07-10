@@ -36,14 +36,14 @@ server.init = (fake = { }) ->
 
       messages.push m
 
-      callbacks.shift().callback m while callbacks.length > 0
+      callbacks.shift().callback [m] while callbacks.length > 0
 
-      messages.shift while messages.length > MESSAGE_BACKLOG
+      messages.shift() while messages.length > MESSAGE_BACKLOG
     
     @query = (since, callback) -> 
 
       matching = []
-      matching.push message for message in messages when message.timestamp >= since
+      matching.push message for message in messages when message.timestamp > since
 
       if matching.length isnt 0
         callback matching 
@@ -84,9 +84,9 @@ server.init = (fake = { }) ->
 
   killOldSessions = ->
     now = new Date
-    for id of sessions 
-      if now - session[id].timestamp > SESSION_TIMEOUT
-        sessions[id].destroy()
+    for session of sessions 
+      if now - session.timestamp > SESSION_TIMEOUT
+        session.destroy()
 
   setInterval killOldSessions, 1000
 

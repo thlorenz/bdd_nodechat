@@ -70,7 +70,8 @@ describe 'given a chat server with no sessions', ->
     beforeEach ->
       @res = @fu_get 'join', { url: '/join?nick=jim' } 
       @jims_id = @res.obj.id
-      @server_starttime = @res.obj.starttime
+      # tests query immediately (unlike real client), so we'l claim server started a bit ealier
+      @server_starttime = @res.obj.starttime - 1 
 
     it 'has code 200', -> expect(@res).hasCode 200
     it 'returns session id', -> expect(@jims_id).toBeGreaterThan 0
