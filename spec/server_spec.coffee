@@ -1,21 +1,27 @@
 qs = require 'querystring'
 
 mem_rss_stub = 10
+port_stub = 1
 
 process_stub = 
   memoryUsage: -> rss: mem_rss_stub
+  env: 
+    PORT: port_stub
 
 beforeEach ->
 
   @addMatchers
     hasCode: (code) -> @actual.code is code
     hasRSS: -> @actual.obj.rss is mem_rss_stub
-    isEmpty: -> @actual.length is 0
+    isEmpty: -> if @actual.length? then @actual.length is 0 else @actual == "" 
     toContainOnly: (item) -> @actual.length is 1 and @actual[0] = item
   
   @fu_stub = 
       gets: {}
       get: (id, callback) -> @gets[id] = callback; undefined
+      listens_on: {}
+      listen: (port, host) -> @listens_on = { port: port, host: host }
+      staticHandler: (file) -> 
 
   @res_stub =  
     code: -1, obj: {}
@@ -39,6 +45,10 @@ beforeEach ->
     process: process_stub
 
 describe 'given a chat server with no sessions', ->
+
+  it 'listens on the given port', -> expect(@fu_stub.listens_on.port).toEqual port_stub 
+  it 'listens on a host', -> expect(@fu_stub.listens_on.host).not.isEmpty()
+
   describe 'and i ask who is connected', ->
     beforeEach -> @res = @fu_get 'who'
     

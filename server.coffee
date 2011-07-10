@@ -1,6 +1,5 @@
 server = exports
 
-
 HOST = "localhost"
 PORT = 8001
 
@@ -9,24 +8,19 @@ SESSION_TIMEOUT = 60 * 1000
 
 server.init = (fake = { }) ->
 
-  sys = fake.sys || require "sys"
-  fu = fake.fu || require "./fu"
-  qs = fake.qs || require "querystring"
-  url = fake.url || require "url"
+  sys = fake.sys or require "sys"
+  fu = fake.fu or require "./fu"
+  qs = fake.qs or require "querystring"
+  url = fake.url or require "url"
 
-  process = fake.process || global.process
+  process = fake.process or global.process
 
-  mem = rss: 10
   sessions = {} 
 
   channel = new ->
 
     messages = []
     callbacks = []
-
-    @reset = ->
-      messages = []
-      callbacks = []
 
     @appendMessage = (nick, type, text) ->
       m =
@@ -88,6 +82,13 @@ server.init = (fake = { }) ->
     sessions[session.id] = session
     session
 
+  killOldSessions = ->
+    now = new Date
+    for id of sessions 
+      if now - session[id].timestamp > SESSION_TIMEOUT
+        sessions[id].destroy()
+
+  setInterval killOldSessions, 1000
 
   startTime = (new Date).getTime()
 
@@ -97,6 +98,13 @@ server.init = (fake = { }) ->
   updateMemory() 
 
   setInterval updateMemory, 10 * 1000 
+
+  fu.listen Number(process.env.PORT or PORT), HOST
+
+  fu.get "/", fu.staticHandler "index.html"
+  fu.get "/style.css", fu.staticHandler "style.css"
+  fu.get "/client.js", fu.staticHandler "client.js"
+  fu.get "/jquery-1.2.6.min.js", fu.staticHandler "jquery-1.2.6.min.js"
 
   fu.get "/join", (req, res) ->
     nick = qs.parse(url.parse(req.url).query).nick
