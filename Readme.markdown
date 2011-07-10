@@ -13,4 +13,5 @@
 ### Compile using CoffeeScript
   If not installed: <pre>npm install -g coffee-script</pre>
   Compile server and bootstrapper: <pre>coffee -c *.coffee</pre>
-  Start 'em up: <pre>node bootstrapper</pre>
+### Start 'em up:
+   <pre>node bootstrapper</pre>
