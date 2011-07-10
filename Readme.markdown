@@ -7,3 +7,10 @@
 ## Why?
  I just wanted to see how easy (or not) it is to write JavaScript/CoffeeScript server side apps in a behavior driven way.
  I was positively surprised. 
+
+## To run:
+
+### Compile using CoffeeScript
+  If not installed: <pre>npm install -g coffee-script</pre>
+  Compile server and bootstrapper: <pre>coffee -c *.coffee</pre>
+  Start 'em up: <pre>node bootstrapper</pre>
