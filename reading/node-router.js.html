@@ -1,0 +1,586 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/dev/bdd_nodechat/lib/node-router.js.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="javascript">
+<meta name="settings" content="use_css,number_lines">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #ffffff; background-color: #333333; }
+body { font-family: monospace; color: #ffffff; background-color: #333333; }
+.lnr { color: #ffff00; }
+.Type { color: #bdb76b; font-weight: bold; }
+.Statement { color: #f0e68c; font-weight: bold; }
+.Special { color: #ffdead; }
+.Constant { color: #ffa0a0; }
+.Identifier { color: #98fb98; }
+.Comment { color: #87ceeb; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Comment">/*</span>
+<span class="lnr">  2 </span><span class="Comment">Copyright (c) 2010 Tim Caswell &lt;tim@creationix.com&gt;</span>
+<span class="lnr">  3 </span>
+<span class="lnr">  4 </span><span class="Comment">Permission is hereby granted, free of charge, to any person</span>
+<span class="lnr">  5 </span><span class="Comment">obtaining a copy of this software and associated documentation</span>
+<span class="lnr">  6 </span><span class="Comment">files (the &quot;Software&quot;), to deal in the Software without</span>
+<span class="lnr">  7 </span><span class="Comment">restriction, including without limitation the rights to use,</span>
+<span class="lnr">  8 </span><span class="Comment">copy, modify, merge, publish, distribute, sublicense, and/or sell</span>
+<span class="lnr">  9 </span><span class="Comment">copies of the Software, and to permit persons to whom the</span>
+<span class="lnr"> 10 </span><span class="Comment">Software is furnished to do so, subject to the following</span>
+<span class="lnr"> 11 </span><span class="Comment">conditions:</span>
+<span class="lnr"> 12 </span>
+<span class="lnr"> 13 </span><span class="Comment">The above copyright notice and this permission notice shall be</span>
+<span class="lnr"> 14 </span><span class="Comment">included in all copies or substantial portions of the Software.</span>
+<span class="lnr"> 15 </span>
+<span class="lnr"> 16 </span><span class="Comment">THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND,</span>
+<span class="lnr"> 17 </span><span class="Comment">EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES</span>
+<span class="lnr"> 18 </span><span class="Comment">OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND</span>
+<span class="lnr"> 19 </span><span class="Comment">NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT</span>
+<span class="lnr"> 20 </span><span class="Comment">HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,</span>
+<span class="lnr"> 21 </span><span class="Comment">WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING</span>
+<span class="lnr"> 22 </span><span class="Comment">FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR</span>
+<span class="lnr"> 23 </span><span class="Comment">OTHER DEALINGS IN THE SOFTWARE.</span>
+<span class="lnr"> 24 </span><span class="Comment">*/</span>
+<span class="lnr"> 25 </span>
+<span class="lnr"> 26 </span><span class="Identifier">var</span> sys = require(<span class="Constant">'sys'</span>);
+<span class="lnr"> 27 </span><span class="Identifier">var</span> fs = require(<span class="Constant">'fs'</span>);
+<span class="lnr"> 28 </span><span class="Identifier">var</span> path = require(<span class="Constant">'path'</span>);
+<span class="lnr"> 29 </span><span class="Identifier">var</span> http = require(<span class="Constant">'http'</span>);
+<span class="lnr"> 30 </span><span class="Identifier">var</span> url_parse = require(<span class="Constant">&quot;url&quot;</span>).parse;
+<span class="lnr"> 31 </span>
+<span class="lnr"> 32 </span><span class="Comment">// Used as a simple, convient 404 handler.</span>
+<span class="lnr"> 33 </span><span class="Identifier">function</span> notFound(req, res, message) <span class="Identifier">{</span>
+<span class="lnr"> 34 </span>  message = (message || <span class="Constant">&quot;Not Found</span><span class="Special">\n</span><span class="Constant">&quot;</span>) + <span class="Constant">&quot;&quot;</span>;
+<span class="lnr"> 35 </span>  res.writeHead(404, <span class="Identifier">{</span>
+<span class="lnr"> 36 </span>    <span class="Constant">&quot;Content-Type&quot;</span>: <span class="Constant">&quot;text/plain&quot;</span>,
+<span class="lnr"> 37 </span>    <span class="Constant">&quot;Content-Length&quot;</span>: message.length
+<span class="lnr"> 38 </span>  <span class="Identifier">}</span>);
+<span class="lnr"> 39 </span>  <span class="Statement">if</span> (req.method !== <span class="Constant">&quot;HEAD&quot;</span>)
+<span class="lnr"> 40 </span>    res.write(message);
+<span class="lnr"> 41 </span>  res.end();
+<span class="lnr"> 42 </span><span class="Identifier">}</span>
+<span class="lnr"> 43 </span>
+<span class="lnr"> 44 </span><span class="Comment">// Modifies req and res to call logger with a log line on each res.end</span>
+<span class="lnr"> 45 </span><span class="Comment">// Think of it as &quot;middleware&quot;</span>
+<span class="lnr"> 46 </span><span class="Identifier">function</span> logify(req, res, logger) <span class="Identifier">{</span>
+<span class="lnr"> 47 </span>  <span class="Identifier">var</span> end = res.end;
+<span class="lnr"> 48 </span>  res.end = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr"> 49 </span>    <span class="Comment">// Common Log Format (mostly)</span>
+<span class="lnr"> 50 </span>    logger((req.socket &amp;&amp; req.socket.remoteAddress) + <span class="Constant">&quot; - - [&quot;</span> + (<span class="Statement">new</span> <span class="Type">Date</span>()).toUTCString() + <span class="Constant">&quot;]&quot;</span>
+<span class="lnr"> 51 </span>     + <span class="Constant">&quot; </span><span class="Special">\&quot;</span><span class="Constant">&quot;</span> + req.method + <span class="Constant">&quot; &quot;</span> + req.url
+<span class="lnr"> 52 </span>     + <span class="Constant">&quot; HTTP/&quot;</span> + req.httpVersionMajor + <span class="Constant">&quot;.&quot;</span> + req.httpVersionMinor + <span class="Constant">&quot;</span><span class="Special">\&quot;</span><span class="Constant"> &quot;</span>
+<span class="lnr"> 53 </span>     + res.statusCode + <span class="Constant">&quot; - </span><span class="Special">\&quot;</span><span class="Constant">&quot;</span>
+<span class="lnr"> 54 </span>     + (req.headers<span class="Identifier">[</span><span class="Constant">'referer'</span><span class="Identifier">]</span> || <span class="Constant">&quot;&quot;</span>) + <span class="Constant">&quot;</span><span class="Special">\&quot;</span><span class="Constant"> </span><span class="Special">\&quot;</span><span class="Constant">&quot;</span> + (req.headers<span class="Identifier">[</span><span class="Constant">&quot;user-agent&quot;</span><span class="Identifier">]</span> ? req.headers<span class="Identifier">[</span><span class="Constant">&quot;user-agent&quot;</span><span class="Identifier">]</span>.split(<span class="Constant">' '</span>)<span class="Identifier">[</span>0<span class="Identifier">]</span> : <span class="Constant">''</span>) + <span class="Constant">&quot;</span><span class="Special">\&quot;</span><span class="Constant">&quot;</span>);
+<span class="lnr"> 55 </span>    <span class="Statement">return</span> end.apply(<span class="Identifier">this</span>, <span class="Identifier">arguments</span>);
+<span class="lnr"> 56 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 57 </span>  <span class="Identifier">var</span> writeHead = res.writeHead;
+<span class="lnr"> 58 </span>  res.writeHead = <span class="Identifier">function</span> (code) <span class="Identifier">{</span>
+<span class="lnr"> 59 </span>    res.statusCode = code;
+<span class="lnr"> 60 </span>    <span class="Statement">return</span> writeHead.apply(<span class="Identifier">this</span>, <span class="Identifier">arguments</span>);
+<span class="lnr"> 61 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 62 </span><span class="Identifier">}</span>
+<span class="lnr"> 63 </span>
+<span class="lnr"> 64 </span>exports.getServer = <span class="Identifier">function</span> getServer(logger) <span class="Identifier">{</span>
+<span class="lnr"> 65 </span>
+<span class="lnr"> 66 </span>  logger = logger || sys.puts;
+<span class="lnr"> 67 </span>
+<span class="lnr"> 68 </span>  <span class="Identifier">var</span> routes = <span class="Identifier">[]</span>;
+<span class="lnr"> 69 </span>
+<span class="lnr"> 70 </span>  <span class="Comment">// Adds a route the the current server</span>
+<span class="lnr"> 71 </span>  <span class="Identifier">function</span> addRoute(method, pattern, handler, format) <span class="Identifier">{</span>
+<span class="lnr"> 72 </span>    <span class="Statement">if</span> (<span class="Statement">typeof</span> pattern === <span class="Constant">'string'</span>) <span class="Identifier">{</span>
+<span class="lnr"> 73 </span>      pattern = <span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">&quot;^&quot;</span> + pattern + <span class="Constant">&quot;$&quot;</span>);
+<span class="lnr"> 74 </span>    <span class="Identifier">}</span>
+<span class="lnr"> 75 </span>    <span class="Identifier">var</span> route = <span class="Identifier">{</span>
+<span class="lnr"> 76 </span>      method: method,
+<span class="lnr"> 77 </span>      pattern: pattern,
+<span class="lnr"> 78 </span>      handler: handler
+<span class="lnr"> 79 </span>    <span class="Identifier">}</span>;
+<span class="lnr"> 80 </span>    <span class="Statement">if</span> (format !== <span class="Statement">undefined</span>) <span class="Identifier">{</span>
+<span class="lnr"> 81 </span>      route.format = format;
+<span class="lnr"> 82 </span>    <span class="Identifier">}</span>
+<span class="lnr"> 83 </span>    routes.push(route);
+<span class="lnr"> 84 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 85 </span>
+<span class="lnr"> 86 </span>  <span class="Comment">// The four verbs are wrappers around addRoute</span>
+<span class="lnr"> 87 </span>  <span class="Identifier">function</span> get(pattern, handler) <span class="Identifier">{</span>
+<span class="lnr"> 88 </span>    <span class="Statement">return</span> addRoute(<span class="Constant">&quot;GET&quot;</span>, pattern, handler);
+<span class="lnr"> 89 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 90 </span>  <span class="Identifier">function</span> post(pattern, handler, format) <span class="Identifier">{</span>
+<span class="lnr"> 91 </span>    <span class="Statement">return</span> addRoute(<span class="Constant">&quot;POST&quot;</span>, pattern, handler, format);
+<span class="lnr"> 92 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 93 </span>  <span class="Identifier">function</span> put(pattern, handler, format) <span class="Identifier">{</span>
+<span class="lnr"> 94 </span>    <span class="Statement">return</span> addRoute(<span class="Constant">&quot;PUT&quot;</span>, pattern, handler, format);
+<span class="lnr"> 95 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 96 </span>  <span class="Identifier">function</span> del(pattern, handler) <span class="Identifier">{</span>
+<span class="lnr"> 97 </span>    <span class="Statement">return</span> addRoute(<span class="Constant">&quot;DELETE&quot;</span>, pattern, handler);
+<span class="lnr"> 98 </span>  <span class="Identifier">}</span>
+<span class="lnr"> 99 </span>  <span class="Identifier">function</span> head(pattern, handler) <span class="Identifier">{</span>
+<span class="lnr">100 </span>    <span class="Statement">return</span> addRoute(<span class="Constant">&quot;HEAD&quot;</span>, pattern, handler);
+<span class="lnr">101 </span>  <span class="Identifier">}</span>
+<span class="lnr">102 </span>
+<span class="lnr">103 </span>  <span class="Comment">// This is a meta pattern that expands to a common RESTful mapping</span>
+<span class="lnr">104 </span>  <span class="Identifier">function</span> resource(name, controller, format) <span class="Identifier">{</span>
+<span class="lnr">105 </span>    get(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^/'</span> + name + <span class="Constant">'$'</span>), controller.index);
+<span class="lnr">106 </span>    get(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^/'</span> + name + <span class="Constant">'/([^/]+)$'</span>), controller.show);
+<span class="lnr">107 </span>    post(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^/'</span> + name + <span class="Constant">'$'</span>), controller.create, format);
+<span class="lnr">108 </span>    put(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^/'</span> + name + <span class="Constant">'/([^/]+)$'</span>), controller.update, format);
+<span class="lnr">109 </span>    del(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^/'</span> + name + <span class="Constant">'/([^/]+)$'</span>), controller.destroy);
+<span class="lnr">110 </span>  <span class="Identifier">}</span>;
+<span class="lnr">111 </span>
+<span class="lnr">112 </span>  <span class="Identifier">function</span> resourceController(name, data, on_change) <span class="Identifier">{</span>
+<span class="lnr">113 </span>    data = data || <span class="Identifier">[]</span>;
+<span class="lnr">114 </span>    on_change = on_change || <span class="Identifier">function</span> () <span class="Identifier">{}</span>;
+<span class="lnr">115 </span>    <span class="Statement">return</span> <span class="Identifier">{</span>
+<span class="lnr">116 </span>      index: <span class="Identifier">function</span> (req, res) <span class="Identifier">{</span>
+<span class="lnr">117 </span>        res.simpleJson(200, <span class="Identifier">{</span>content: data, <span class="Statement">self</span>: <span class="Constant">'/'</span> + name<span class="Identifier">}</span>);
+<span class="lnr">118 </span>      <span class="Identifier">}</span>,
+<span class="lnr">119 </span>      show: <span class="Identifier">function</span> (req, res, id) <span class="Identifier">{</span>
+<span class="lnr">120 </span>        <span class="Identifier">var</span> item = data<span class="Identifier">[</span>id<span class="Identifier">]</span>;
+<span class="lnr">121 </span>        <span class="Statement">if</span> (item) <span class="Identifier">{</span>
+<span class="lnr">122 </span>          res.simpleJson(200, <span class="Identifier">{</span>content: item, <span class="Statement">self</span>: <span class="Constant">'/'</span> + name + <span class="Constant">'/'</span> + id<span class="Identifier">}</span>);
+<span class="lnr">123 </span>        <span class="Identifier">}</span> <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">124 </span>          res.notFound();
+<span class="lnr">125 </span>        <span class="Identifier">}</span>
+<span class="lnr">126 </span>      <span class="Identifier">}</span>,
+<span class="lnr">127 </span>      create: <span class="Identifier">function</span> (req, res) <span class="Identifier">{</span>
+<span class="lnr">128 </span>        req.jsonBody(<span class="Identifier">function</span> (json) <span class="Identifier">{</span>
+<span class="lnr">129 </span>          <span class="Identifier">var</span> item, id, url;
+<span class="lnr">130 </span>          item = json &amp;&amp; json.content;
+<span class="lnr">131 </span>          <span class="Statement">if</span> (!item) <span class="Identifier">{</span>
+<span class="lnr">132 </span>            res.notFound();
+<span class="lnr">133 </span>          <span class="Identifier">}</span> <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">134 </span>            data.push(item);
+<span class="lnr">135 </span>            id = data.length - 1;
+<span class="lnr">136 </span>            on_change(id);
+<span class="lnr">137 </span>            url = <span class="Constant">&quot;/&quot;</span> + name + <span class="Constant">&quot;/&quot;</span> + id;
+<span class="lnr">138 </span>            res.simpleJson(201, <span class="Identifier">{</span>content: item, <span class="Statement">self</span>: url<span class="Identifier">}</span>, <span class="Identifier">[[</span><span class="Constant">&quot;Location&quot;</span>, url<span class="Identifier">]]</span>);
+<span class="lnr">139 </span>          <span class="Identifier">}</span>
+<span class="lnr">140 </span>        <span class="Identifier">}</span>);
+<span class="lnr">141 </span>      <span class="Identifier">}</span>,
+<span class="lnr">142 </span>      update: <span class="Identifier">function</span> (req, res, id) <span class="Identifier">{</span>
+<span class="lnr">143 </span>        req.jsonBody(<span class="Identifier">function</span> (json) <span class="Identifier">{</span>
+<span class="lnr">144 </span>          <span class="Identifier">var</span> item = json &amp;&amp; json.content;
+<span class="lnr">145 </span>          <span class="Statement">if</span> (!item) <span class="Identifier">{</span>
+<span class="lnr">146 </span>            res.notFound();
+<span class="lnr">147 </span>          <span class="Identifier">}</span> <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">148 </span>            data<span class="Identifier">[</span>id<span class="Identifier">]</span> = item;
+<span class="lnr">149 </span>            on_change(id);
+<span class="lnr">150 </span>            res.simpleJson(200, <span class="Identifier">{</span>content: item, <span class="Statement">self</span>: <span class="Constant">&quot;/&quot;</span> + name + <span class="Constant">&quot;/&quot;</span> + id<span class="Identifier">}</span>);
+<span class="lnr">151 </span>          <span class="Identifier">}</span>
+<span class="lnr">152 </span>        <span class="Identifier">}</span>);
+<span class="lnr">153 </span>      <span class="Identifier">}</span>,
+<span class="lnr">154 </span>      destroy: <span class="Identifier">function</span> (req, res, id) <span class="Identifier">{</span>
+<span class="lnr">155 </span>        <span class="Statement">delete</span> data<span class="Identifier">[</span>id<span class="Identifier">]</span>;
+<span class="lnr">156 </span>        on_change(id);
+<span class="lnr">157 </span>        res.simpleJson(200, <span class="Constant">&quot;200 Destroyed&quot;</span>);
+<span class="lnr">158 </span>      <span class="Identifier">}</span>
+<span class="lnr">159 </span>    <span class="Identifier">}</span>;
+<span class="lnr">160 </span>  <span class="Identifier">}</span>;
+<span class="lnr">161 </span>
+<span class="lnr">162 </span>  <span class="Comment">// Create the http server object</span>
+<span class="lnr">163 </span>  <span class="Identifier">var</span> server = http.createServer(<span class="Identifier">function</span> (req, res) <span class="Identifier">{</span>
+<span class="lnr">164 </span>
+<span class="lnr">165 </span>    <span class="Comment">// Enable logging on all requests using common-logger style</span>
+<span class="lnr">166 </span>    logify(req, res, logger);
+<span class="lnr">167 </span>
+<span class="lnr">168 </span>    <span class="Identifier">var</span> uri, path;
+<span class="lnr">169 </span>
+<span class="lnr">170 </span>    <span class="Comment">// Performs an HTTP 302 redirect</span>
+<span class="lnr">171 </span>    res.redirect = <span class="Identifier">function</span> redirect(<span class="Statement">location</span>) <span class="Identifier">{</span>
+<span class="lnr">172 </span>      res.writeHead(302, <span class="Identifier">{</span><span class="Constant">&quot;Location&quot;</span>: <span class="Statement">location</span><span class="Identifier">}</span>);
+<span class="lnr">173 </span>      res.end();
+<span class="lnr">174 </span>    <span class="Identifier">}</span>
+<span class="lnr">175 </span>
+<span class="lnr">176 </span>    <span class="Comment">// Performs an internal redirect</span>
+<span class="lnr">177 </span>    res.innerRedirect = <span class="Identifier">function</span> innerRedirect(<span class="Statement">location</span>) <span class="Identifier">{</span>
+<span class="lnr">178 </span>      logger(<span class="Constant">&quot;Internal Redirect: &quot;</span> + req.url + <span class="Constant">&quot; -&gt; &quot;</span> + <span class="Statement">location</span>);
+<span class="lnr">179 </span>      req.url = <span class="Statement">location</span>;
+<span class="lnr">180 </span>      doRoute();
+<span class="lnr">181 </span>    <span class="Identifier">}</span>
+<span class="lnr">182 </span>
+<span class="lnr">183 </span>    <span class="Identifier">function</span> simpleResponse(code, body, content_type, extra_headers) <span class="Identifier">{</span>
+<span class="lnr">184 </span>      res.writeHead(code, (extra_headers || <span class="Identifier">[]</span>).concat(
+<span class="lnr">185 </span>                           <span class="Identifier">[</span> <span class="Identifier">[</span><span class="Constant">&quot;Content-Type&quot;</span>, content_type<span class="Identifier">]</span>,
+<span class="lnr">186 </span>                             <span class="Identifier">[</span><span class="Constant">&quot;Content-Length&quot;</span>, Buffer.byteLength(body, <span class="Constant">'utf8'</span>)<span class="Identifier">]</span>
+<span class="lnr">187 </span>                           <span class="Identifier">]</span>));
+<span class="lnr">188 </span>      <span class="Statement">if</span> (req.method !== <span class="Constant">&quot;HEAD&quot;</span>)
+<span class="lnr">189 </span>        res.write(body, <span class="Constant">'utf8'</span>);
+<span class="lnr">190 </span>      res.end();
+<span class="lnr">191 </span>    <span class="Identifier">}</span>
+<span class="lnr">192 </span>
+<span class="lnr">193 </span>    res.simpleText = <span class="Identifier">function</span> (code, body, extra_headers) <span class="Identifier">{</span>
+<span class="lnr">194 </span>      simpleResponse(code, body, <span class="Constant">&quot;text/plain&quot;</span>, extra_headers);
+<span class="lnr">195 </span>    <span class="Identifier">}</span>;
+<span class="lnr">196 </span>
+<span class="lnr">197 </span>    res.simpleHtml = <span class="Identifier">function</span> (code, body, extra_headers) <span class="Identifier">{</span>
+<span class="lnr">198 </span>      simpleResponse(code, body, <span class="Constant">&quot;text/html&quot;</span>, extra_headers);
+<span class="lnr">199 </span>    <span class="Identifier">}</span>;
+<span class="lnr">200 </span>
+<span class="lnr">201 </span>    res.simpleJson = <span class="Identifier">function</span> (code, json, extra_headers) <span class="Identifier">{</span>
+<span class="lnr">202 </span>      simpleResponse(code, JSON.stringify(json), <span class="Constant">&quot;application/json&quot;</span>, extra_headers);
+<span class="lnr">203 </span>    <span class="Identifier">}</span>;
+<span class="lnr">204 </span>
+<span class="lnr">205 </span>    res.notFound = <span class="Identifier">function</span> (message) <span class="Identifier">{</span>
+<span class="lnr">206 </span>      notFound(req, res, message);
+<span class="lnr">207 </span>    <span class="Identifier">}</span>;
+<span class="lnr">208 </span>
+<span class="lnr">209 </span>    res.onlyHead = <span class="Identifier">function</span> (code, extra_headers) <span class="Identifier">{</span>
+<span class="lnr">210 </span>      res.writeHead(code, (extra_headers || <span class="Identifier">[]</span>).concat(
+<span class="lnr">211 </span>                           <span class="Identifier">[[</span><span class="Constant">&quot;Content-Type&quot;</span>, content_type<span class="Identifier">]]</span>));
+<span class="lnr">212 </span>      res.end();
+<span class="lnr">213 </span>    <span class="Identifier">}</span>
+<span class="lnr">214 </span>
+<span class="lnr">215 </span>    <span class="Identifier">function</span> doRoute() <span class="Identifier">{</span>
+<span class="lnr">216 </span>      uri = url_parse(req.url);
+<span class="lnr">217 </span>      path = uri.pathname;
+<span class="lnr">218 </span>
+<span class="lnr">219 </span>      <span class="Statement">for</span> (<span class="Identifier">var</span> i = 0, l = routes.length; i &lt; l; i += 1) <span class="Identifier">{</span>
+<span class="lnr">220 </span>        <span class="Identifier">var</span> route = routes<span class="Identifier">[</span>i<span class="Identifier">]</span>;
+<span class="lnr">221 </span>        <span class="Statement">if</span> (req.method === route.method) <span class="Identifier">{</span>
+<span class="lnr">222 </span>          <span class="Identifier">var</span> match = path.match(route.pattern);
+<span class="lnr">223 </span>          <span class="Statement">if</span> (match &amp;&amp; match<span class="Identifier">[</span>0<span class="Identifier">]</span>.length &gt; 0) <span class="Identifier">{</span>
+<span class="lnr">224 </span>            match.shift();
+<span class="lnr">225 </span>            match = match.map(<span class="Identifier">function</span> (part) <span class="Identifier">{</span>
+<span class="lnr">226 </span>              <span class="Statement">return</span> part ? <span class="Statement">unescape</span>(part) : part;
+<span class="lnr">227 </span>            <span class="Identifier">}</span>);
+<span class="lnr">228 </span>            match.unshift(res);
+<span class="lnr">229 </span>            match.unshift(req);
+<span class="lnr">230 </span>            <span class="Statement">if</span> (route.format !== <span class="Statement">undefined</span>) <span class="Identifier">{</span>
+<span class="lnr">231 </span>              <span class="Identifier">var</span> body = <span class="Constant">&quot;&quot;</span>;
+<span class="lnr">232 </span>              req.setEncoding(<span class="Constant">'utf8'</span>);
+<span class="lnr">233 </span>              req.addListener(<span class="Constant">'data'</span>, <span class="Identifier">function</span> (chunk) <span class="Identifier">{</span>
+<span class="lnr">234 </span>                body += chunk;
+<span class="lnr">235 </span>              <span class="Identifier">}</span>);
+<span class="lnr">236 </span>              req.addListener(<span class="Constant">'end'</span>, <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">237 </span>                <span class="Statement">if</span> (route.format === <span class="Constant">'json'</span>) <span class="Identifier">{</span>
+<span class="lnr">238 </span>                  <span class="Statement">try</span> <span class="Identifier">{</span>
+<span class="lnr">239 </span>                    body = JSON.parse(<span class="Statement">unescape</span>(body));
+<span class="lnr">240 </span>                  <span class="Identifier">}</span> <span class="Statement">catch</span>(e) <span class="Identifier">{</span>
+<span class="lnr">241 </span>                    body = <span class="Statement">null</span>;
+<span class="lnr">242 </span>                  <span class="Identifier">}</span>
+<span class="lnr">243 </span>                <span class="Identifier">}</span>
+<span class="lnr">244 </span>                match.push(body);
+<span class="lnr">245 </span>                route.handler.apply(<span class="Statement">null</span>, match);
+<span class="lnr">246 </span>              <span class="Identifier">}</span>);
+<span class="lnr">247 </span>              <span class="Statement">return</span>;
+<span class="lnr">248 </span>            <span class="Identifier">}</span>
+<span class="lnr">249 </span>            <span class="Identifier">var</span> result = route.handler.apply(<span class="Statement">null</span>, match);
+<span class="lnr">250 </span>            <span class="Statement">switch</span> (<span class="Statement">typeof</span> result) <span class="Identifier">{</span>
+<span class="lnr">251 </span>              <span class="Statement">case</span> <span class="Constant">&quot;string&quot;</span>:
+<span class="lnr">252 </span>                res.simpleHtml(200, result);
+<span class="lnr">253 </span>                <span class="Statement">break</span>;
+<span class="lnr">254 </span>              <span class="Statement">case</span> <span class="Constant">&quot;object&quot;</span>:
+<span class="lnr">255 </span>                res.simpleJson(200, result);
+<span class="lnr">256 </span>                <span class="Statement">break</span>;
+<span class="lnr">257 </span>            <span class="Identifier">}</span>
+<span class="lnr">258 </span>
+<span class="lnr">259 </span>            <span class="Statement">return</span>;
+<span class="lnr">260 </span>          <span class="Identifier">}</span>
+<span class="lnr">261 </span>        <span class="Identifier">}</span>
+<span class="lnr">262 </span>      <span class="Identifier">}</span>
+<span class="lnr">263 </span>
+<span class="lnr">264 </span>      notFound(req, res);
+<span class="lnr">265 </span>    <span class="Identifier">}</span>
+<span class="lnr">266 </span>    doRoute();
+<span class="lnr">267 </span>
+<span class="lnr">268 </span>  <span class="Identifier">}</span>);
+<span class="lnr">269 </span>
+<span class="lnr">270 </span>
+<span class="lnr">271 </span>  <span class="Identifier">function</span> listen(port, host, callback) <span class="Identifier">{</span>
+<span class="lnr">272 </span>    port = port || 8080;
+<span class="lnr">273 </span>
+<span class="lnr">274 </span>    <span class="Statement">if</span> (<span class="Statement">typeof</span> host === <span class="Constant">'undefined'</span> || host == <span class="Constant">'*'</span>)
+<span class="lnr">275 </span>      host = <span class="Statement">null</span>;
+<span class="lnr">276 </span>
+<span class="lnr">277 </span>    server.listen(port, host, callback);
+<span class="lnr">278 </span>
+<span class="lnr">279 </span>    <span class="Statement">if</span> (<span class="Statement">typeof</span> port === <span class="Constant">'number'</span>) <span class="Identifier">{</span>
+<span class="lnr">280 </span>      logger(<span class="Constant">&quot;node-router server instance at <a href="http://">http://</a>&quot;</span> + (host || <span class="Constant">'*'</span>) + <span class="Constant">&quot;:&quot;</span> + port + <span class="Constant">&quot;/&quot;</span>);
+<span class="lnr">281 </span>    <span class="Identifier">}</span> <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">282 </span>      logger(<span class="Constant">&quot;node-router server instance at unix:&quot;</span> + port);
+<span class="lnr">283 </span>  <span class="Identifier">}</span>
+<span class="lnr">284 </span>  <span class="Identifier">}</span>
+<span class="lnr">285 </span>
+<span class="lnr">286 </span>  <span class="Identifier">function</span> end() <span class="Identifier">{</span>
+<span class="lnr">287 </span>    <span class="Statement">return</span> server.end();
+<span class="lnr">288 </span>  <span class="Identifier">}</span>
+<span class="lnr">289 </span>
+<span class="lnr">290 </span>  <span class="Comment">// Return a handle to the public facing functions from this closure as the</span>
+<span class="lnr">291 </span>  <span class="Comment">// server object.</span>
+<span class="lnr">292 </span>  <span class="Statement">return</span> <span class="Identifier">{</span>
+<span class="lnr">293 </span>    get: get,
+<span class="lnr">294 </span>    post: post,
+<span class="lnr">295 </span>    put: put,
+<span class="lnr">296 </span>    del: del,
+<span class="lnr">297 </span>    resource: resource,
+<span class="lnr">298 </span>    resourceController: resourceController,
+<span class="lnr">299 </span>    listen: listen,
+<span class="lnr">300 </span>    end: end
+<span class="lnr">301 </span>  <span class="Identifier">}</span>;
+<span class="lnr">302 </span><span class="Identifier">}</span>
+<span class="lnr">303 </span>
+<span class="lnr">304 </span>
+<span class="lnr">305 </span>
+<span class="lnr">306 </span>
+<span class="lnr">307 </span>exports.staticHandler = <span class="Identifier">function</span> (filename) <span class="Identifier">{</span>
+<span class="lnr">308 </span>  <span class="Identifier">var</span> body, headers;
+<span class="lnr">309 </span>  <span class="Identifier">var</span> content_type = mime.getMime(filename)
+<span class="lnr">310 </span>  <span class="Identifier">var</span> encoding = (content_type.slice(0,4) === <span class="Constant">&quot;text&quot;</span> ? <span class="Constant">&quot;utf8&quot;</span> : <span class="Constant">&quot;binary&quot;</span>);
+<span class="lnr">311 </span>
+<span class="lnr">312 </span>  <span class="Identifier">function</span> loadResponseData(req, res, callback) <span class="Identifier">{</span>
+<span class="lnr">313 </span>    <span class="Statement">if</span> (body &amp;&amp; headers) <span class="Identifier">{</span>
+<span class="lnr">314 </span>      callback();
+<span class="lnr">315 </span>      <span class="Statement">return</span>;
+<span class="lnr">316 </span>    <span class="Identifier">}</span>
+<span class="lnr">317 </span>
+<span class="lnr">318 </span>    fs.readFile(filename, encoding, <span class="Identifier">function</span> (err, data) <span class="Identifier">{</span>
+<span class="lnr">319 </span>      <span class="Statement">if</span> (err) <span class="Identifier">{</span>
+<span class="lnr">320 </span>        notFound(req, res, <span class="Constant">&quot;Cannot find file: &quot;</span> + filename);
+<span class="lnr">321 </span>        <span class="Statement">return</span>;
+<span class="lnr">322 </span>      <span class="Identifier">}</span>
+<span class="lnr">323 </span>      body = data;
+<span class="lnr">324 </span>      headers = <span class="Identifier">[</span> <span class="Identifier">[</span> <span class="Constant">&quot;Content-Type&quot;</span>   , content_type <span class="Identifier">]</span>,
+<span class="lnr">325 </span>                  <span class="Identifier">[</span> <span class="Constant">&quot;Content-Length&quot;</span> , body.length <span class="Identifier">]</span>
+<span class="lnr">326 </span>                <span class="Identifier">]</span>;
+<span class="lnr">327 </span>      headers.push(<span class="Identifier">[</span><span class="Constant">&quot;Cache-Control&quot;</span>, <span class="Constant">&quot;public&quot;</span><span class="Identifier">]</span>);
+<span class="lnr">328 </span>
+<span class="lnr">329 </span>      callback();
+<span class="lnr">330 </span>    <span class="Identifier">}</span>);
+<span class="lnr">331 </span>  <span class="Identifier">}</span>
+<span class="lnr">332 </span>
+<span class="lnr">333 </span>  <span class="Statement">return</span> <span class="Identifier">function</span> (req, res) <span class="Identifier">{</span>
+<span class="lnr">334 </span>    loadResponseData(req, res, <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">335 </span>      res.writeHead(200, headers);
+<span class="lnr">336 </span>      <span class="Statement">if</span> (req.method !== <span class="Constant">&quot;HEAD&quot;</span>)
+<span class="lnr">337 </span>        res.write(body, encoding);
+<span class="lnr">338 </span>      res.end();
+<span class="lnr">339 </span>    <span class="Identifier">}</span>);
+<span class="lnr">340 </span>  <span class="Identifier">}</span>;
+<span class="lnr">341 </span><span class="Identifier">}</span>;
+<span class="lnr">342 </span>
+<span class="lnr">343 </span>exports.staticDirHandler = <span class="Identifier">function</span>(root, prefix) <span class="Identifier">{</span>
+<span class="lnr">344 </span>  <span class="Identifier">function</span> loadResponseData(req, res, filename, callback) <span class="Identifier">{</span>
+<span class="lnr">345 </span>    <span class="Identifier">var</span> content_type = mime.getMime(filename);
+<span class="lnr">346 </span>    <span class="Identifier">var</span> encoding = (content_type.slice(0,4) === <span class="Constant">&quot;text&quot;</span> ? <span class="Constant">&quot;utf8&quot;</span> : <span class="Constant">&quot;binary&quot;</span>);
+<span class="lnr">347 </span>
+<span class="lnr">348 </span>    fs.readFile(filename, encoding, <span class="Identifier">function</span>(err, data) <span class="Identifier">{</span>
+<span class="lnr">349 </span>      <span class="Statement">if</span>(err) <span class="Identifier">{</span>
+<span class="lnr">350 </span>        notFound(req, res, <span class="Constant">&quot;Cannot find file: &quot;</span> + filename);
+<span class="lnr">351 </span>        <span class="Statement">return</span>;
+<span class="lnr">352 </span>      <span class="Identifier">}</span>
+<span class="lnr">353 </span>      <span class="Identifier">var</span> headers = <span class="Identifier">[</span> <span class="Identifier">[</span> <span class="Constant">&quot;Content-Type&quot;</span>   , content_type <span class="Identifier">]</span>,
+<span class="lnr">354 </span>                      <span class="Identifier">[</span> <span class="Constant">&quot;Content-Length&quot;</span> , data.length <span class="Identifier">]</span>,
+<span class="lnr">355 </span>                      <span class="Identifier">[</span> <span class="Constant">&quot;Cache-Control&quot;</span>  , <span class="Constant">&quot;public&quot;</span> <span class="Identifier">]</span>
+<span class="lnr">356 </span>                    <span class="Identifier">]</span>;
+<span class="lnr">357 </span>      callback(headers, data, encoding);
+<span class="lnr">358 </span>    <span class="Identifier">}</span>);
+<span class="lnr">359 </span>  <span class="Identifier">}</span>
+<span class="lnr">360 </span>
+<span class="lnr">361 </span>  <span class="Statement">return</span> <span class="Identifier">function</span> (req, res) <span class="Identifier">{</span>
+<span class="lnr">362 </span>    <span class="Comment">// trim off any query/anchor stuff</span>
+<span class="lnr">363 </span>    <span class="Identifier">var</span> filename = req.url.replace(<span class="Constant">/[\?|#].*$/</span>, <span class="Constant">''</span>);
+<span class="lnr">364 </span>    <span class="Statement">if</span> (prefix) filename = filename.replace(<span class="Statement">new</span> <span class="Type">RegExp</span>(<span class="Constant">'^'</span>+prefix), <span class="Constant">''</span>);
+<span class="lnr">365 </span>    <span class="Comment">// make sure nobody can explore our local filesystem</span>
+<span class="lnr">366 </span>    filename = path.join(root, filename.replace(<span class="Constant">/\.\.+/g</span>, <span class="Constant">'.'</span>));
+<span class="lnr">367 </span>    <span class="Statement">if</span> (filename == root) filename = path.join(root, <span class="Constant">'index.html'</span>);
+<span class="lnr">368 </span>    loadResponseData(req, res, filename, <span class="Identifier">function</span>(headers, body, encoding) <span class="Identifier">{</span>
+<span class="lnr">369 </span>      res.writeHead(200, headers);
+<span class="lnr">370 </span>      <span class="Statement">if</span> (req.method !== <span class="Constant">&quot;HEAD&quot;</span>)
+<span class="lnr">371 </span>        res.write(body, encoding);
+<span class="lnr">372 </span>      res.end();
+<span class="lnr">373 </span>    <span class="Identifier">}</span>);
+<span class="lnr">374 </span>  <span class="Identifier">}</span>;
+<span class="lnr">375 </span><span class="Identifier">}</span>;
+<span class="lnr">376 </span>
+<span class="lnr">377 </span>
+<span class="lnr">378 </span><span class="Comment">// Mini mime module for static file serving</span>
+<span class="lnr">379 </span><span class="Identifier">var</span> DEFAULT_MIME = <span class="Constant">'application/octet-stream'</span>;
+<span class="lnr">380 </span><span class="Identifier">var</span> mime = exports.mime = <span class="Identifier">{</span>
+<span class="lnr">381 </span>
+<span class="lnr">382 </span>  getMime: <span class="Identifier">function</span> getMime(path) <span class="Identifier">{</span>
+<span class="lnr">383 </span>    <span class="Identifier">var</span> index = path.lastIndexOf(<span class="Constant">&quot;.&quot;</span>);
+<span class="lnr">384 </span>    <span class="Statement">if</span> (index &lt; 0) <span class="Identifier">{</span>
+<span class="lnr">385 </span>      <span class="Statement">return</span> DEFAULT_MIME;
+<span class="lnr">386 </span>    <span class="Identifier">}</span>
+<span class="lnr">387 </span>    <span class="Statement">return</span> mime.TYPES<span class="Identifier">[</span>path.substring(index).toLowerCase()<span class="Identifier">]</span> || DEFAULT_MIME;
+<span class="lnr">388 </span>  <span class="Identifier">}</span>,
+<span class="lnr">389 </span>
+<span class="lnr">390 </span>  TYPES : <span class="Identifier">{</span> <span class="Constant">&quot;.3gp&quot;</span>   : <span class="Constant">&quot;video/3gpp&quot;</span>,
+<span class="lnr">391 </span>            <span class="Constant">&quot;.a&quot;</span>     : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">392 </span>            <span class="Constant">&quot;.ai&quot;</span>    : <span class="Constant">&quot;application/postscript&quot;</span>,
+<span class="lnr">393 </span>            <span class="Constant">&quot;.aif&quot;</span>   : <span class="Constant">&quot;audio/x-aiff&quot;</span>,
+<span class="lnr">394 </span>            <span class="Constant">&quot;.aiff&quot;</span>  : <span class="Constant">&quot;audio/x-aiff&quot;</span>,
+<span class="lnr">395 </span>            <span class="Constant">&quot;.asc&quot;</span>   : <span class="Constant">&quot;application/pgp-signature&quot;</span>,
+<span class="lnr">396 </span>            <span class="Constant">&quot;.asf&quot;</span>   : <span class="Constant">&quot;video/x-ms-asf&quot;</span>,
+<span class="lnr">397 </span>            <span class="Constant">&quot;.asm&quot;</span>   : <span class="Constant">&quot;text/x-asm&quot;</span>,
+<span class="lnr">398 </span>            <span class="Constant">&quot;.asx&quot;</span>   : <span class="Constant">&quot;video/x-ms-asf&quot;</span>,
+<span class="lnr">399 </span>            <span class="Constant">&quot;.atom&quot;</span>  : <span class="Constant">&quot;application/atom+xml&quot;</span>,
+<span class="lnr">400 </span>            <span class="Constant">&quot;.au&quot;</span>    : <span class="Constant">&quot;audio/basic&quot;</span>,
+<span class="lnr">401 </span>            <span class="Constant">&quot;.avi&quot;</span>   : <span class="Constant">&quot;video/x-msvideo&quot;</span>,
+<span class="lnr">402 </span>            <span class="Constant">&quot;.bat&quot;</span>   : <span class="Constant">&quot;application/x-msdownload&quot;</span>,
+<span class="lnr">403 </span>            <span class="Constant">&quot;.bin&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">404 </span>            <span class="Constant">&quot;.bmp&quot;</span>   : <span class="Constant">&quot;image/bmp&quot;</span>,
+<span class="lnr">405 </span>            <span class="Constant">&quot;.bz2&quot;</span>   : <span class="Constant">&quot;application/x-bzip2&quot;</span>,
+<span class="lnr">406 </span>            <span class="Constant">&quot;.c&quot;</span>     : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">407 </span>            <span class="Constant">&quot;.cab&quot;</span>   : <span class="Constant">&quot;application/vnd.ms-cab-compressed&quot;</span>,
+<span class="lnr">408 </span>            <span class="Constant">&quot;.cc&quot;</span>    : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">409 </span>            <span class="Constant">&quot;.chm&quot;</span>   : <span class="Constant">&quot;application/vnd.ms-htmlhelp&quot;</span>,
+<span class="lnr">410 </span>            <span class="Constant">&quot;.class&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">411 </span>            <span class="Constant">&quot;.com&quot;</span>   : <span class="Constant">&quot;application/x-msdownload&quot;</span>,
+<span class="lnr">412 </span>            <span class="Constant">&quot;.conf&quot;</span>  : <span class="Constant">&quot;text/plain&quot;</span>,
+<span class="lnr">413 </span>            <span class="Constant">&quot;.cpp&quot;</span>   : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">414 </span>            <span class="Constant">&quot;.crt&quot;</span>   : <span class="Constant">&quot;application/x-x509-ca-cert&quot;</span>,
+<span class="lnr">415 </span>            <span class="Constant">&quot;.css&quot;</span>   : <span class="Constant">&quot;text/css&quot;</span>,
+<span class="lnr">416 </span>            <span class="Constant">&quot;.csv&quot;</span>   : <span class="Constant">&quot;text/csv&quot;</span>,
+<span class="lnr">417 </span>            <span class="Constant">&quot;.cxx&quot;</span>   : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">418 </span>            <span class="Constant">&quot;.deb&quot;</span>   : <span class="Constant">&quot;application/x-debian-package&quot;</span>,
+<span class="lnr">419 </span>            <span class="Constant">&quot;.der&quot;</span>   : <span class="Constant">&quot;application/x-x509-ca-cert&quot;</span>,
+<span class="lnr">420 </span>            <span class="Constant">&quot;.diff&quot;</span>  : <span class="Constant">&quot;text/x-diff&quot;</span>,
+<span class="lnr">421 </span>            <span class="Constant">&quot;.djv&quot;</span>   : <span class="Constant">&quot;image/vnd.djvu&quot;</span>,
+<span class="lnr">422 </span>            <span class="Constant">&quot;.djvu&quot;</span>  : <span class="Constant">&quot;image/vnd.djvu&quot;</span>,
+<span class="lnr">423 </span>            <span class="Constant">&quot;.dll&quot;</span>   : <span class="Constant">&quot;application/x-msdownload&quot;</span>,
+<span class="lnr">424 </span>            <span class="Constant">&quot;.dmg&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">425 </span>            <span class="Constant">&quot;.doc&quot;</span>   : <span class="Constant">&quot;application/msword&quot;</span>,
+<span class="lnr">426 </span>            <span class="Constant">&quot;.dot&quot;</span>   : <span class="Constant">&quot;application/msword&quot;</span>,
+<span class="lnr">427 </span>            <span class="Constant">&quot;.dtd&quot;</span>   : <span class="Constant">&quot;application/xml-dtd&quot;</span>,
+<span class="lnr">428 </span>            <span class="Constant">&quot;.dvi&quot;</span>   : <span class="Constant">&quot;application/x-dvi&quot;</span>,
+<span class="lnr">429 </span>            <span class="Constant">&quot;.ear&quot;</span>   : <span class="Constant">&quot;application/java-archive&quot;</span>,
+<span class="lnr">430 </span>            <span class="Constant">&quot;.eml&quot;</span>   : <span class="Constant">&quot;message/rfc822&quot;</span>,
+<span class="lnr">431 </span>            <span class="Constant">&quot;.eps&quot;</span>   : <span class="Constant">&quot;application/postscript&quot;</span>,
+<span class="lnr">432 </span>            <span class="Constant">&quot;.exe&quot;</span>   : <span class="Constant">&quot;application/x-msdownload&quot;</span>,
+<span class="lnr">433 </span>            <span class="Constant">&quot;.f&quot;</span>     : <span class="Constant">&quot;text/x-fortran&quot;</span>,
+<span class="lnr">434 </span>            <span class="Constant">&quot;.f77&quot;</span>   : <span class="Constant">&quot;text/x-fortran&quot;</span>,
+<span class="lnr">435 </span>            <span class="Constant">&quot;.f90&quot;</span>   : <span class="Constant">&quot;text/x-fortran&quot;</span>,
+<span class="lnr">436 </span>            <span class="Constant">&quot;.flv&quot;</span>   : <span class="Constant">&quot;video/x-flv&quot;</span>,
+<span class="lnr">437 </span>            <span class="Constant">&quot;.for&quot;</span>   : <span class="Constant">&quot;text/x-fortran&quot;</span>,
+<span class="lnr">438 </span>            <span class="Constant">&quot;.gem&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">439 </span>            <span class="Constant">&quot;.gemspec&quot;</span> : <span class="Constant">&quot;text/x-script.ruby&quot;</span>,
+<span class="lnr">440 </span>            <span class="Constant">&quot;.gif&quot;</span>   : <span class="Constant">&quot;image/gif&quot;</span>,
+<span class="lnr">441 </span>            <span class="Constant">&quot;.gz&quot;</span>    : <span class="Constant">&quot;application/x-gzip&quot;</span>,
+<span class="lnr">442 </span>            <span class="Constant">&quot;.h&quot;</span>     : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">443 </span>            <span class="Constant">&quot;.hh&quot;</span>    : <span class="Constant">&quot;text/x-c&quot;</span>,
+<span class="lnr">444 </span>            <span class="Constant">&quot;.htm&quot;</span>   : <span class="Constant">&quot;text/html&quot;</span>,
+<span class="lnr">445 </span>            <span class="Constant">&quot;.html&quot;</span>  : <span class="Constant">&quot;text/html&quot;</span>,
+<span class="lnr">446 </span>            <span class="Constant">&quot;.ico&quot;</span>   : <span class="Constant">&quot;image/vnd.microsoft.icon&quot;</span>,
+<span class="lnr">447 </span>            <span class="Constant">&quot;.ics&quot;</span>   : <span class="Constant">&quot;text/calendar&quot;</span>,
+<span class="lnr">448 </span>            <span class="Constant">&quot;.ifb&quot;</span>   : <span class="Constant">&quot;text/calendar&quot;</span>,
+<span class="lnr">449 </span>            <span class="Constant">&quot;.iso&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">450 </span>            <span class="Constant">&quot;.jar&quot;</span>   : <span class="Constant">&quot;application/java-archive&quot;</span>,
+<span class="lnr">451 </span>            <span class="Constant">&quot;.java&quot;</span>  : <span class="Constant">&quot;text/x-java-source&quot;</span>,
+<span class="lnr">452 </span>            <span class="Constant">&quot;.jnlp&quot;</span>  : <span class="Constant">&quot;application/x-java-jnlp-file&quot;</span>,
+<span class="lnr">453 </span>            <span class="Constant">&quot;.jpeg&quot;</span>  : <span class="Constant">&quot;image/jpeg&quot;</span>,
+<span class="lnr">454 </span>            <span class="Constant">&quot;.jpg&quot;</span>   : <span class="Constant">&quot;image/jpeg&quot;</span>,
+<span class="lnr">455 </span>            <span class="Constant">&quot;.js&quot;</span>    : <span class="Constant">&quot;application/javascript&quot;</span>,
+<span class="lnr">456 </span>            <span class="Constant">&quot;.json&quot;</span>  : <span class="Constant">&quot;application/json&quot;</span>,
+<span class="lnr">457 </span>            <span class="Constant">&quot;.log&quot;</span>   : <span class="Constant">&quot;text/plain&quot;</span>,
+<span class="lnr">458 </span>            <span class="Constant">&quot;.m3u&quot;</span>   : <span class="Constant">&quot;audio/x-mpegurl&quot;</span>,
+<span class="lnr">459 </span>            <span class="Constant">&quot;.m4v&quot;</span>   : <span class="Constant">&quot;video/mp4&quot;</span>,
+<span class="lnr">460 </span>            <span class="Constant">&quot;.man&quot;</span>   : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">461 </span>            <span class="Constant">&quot;.mathml&quot;</span>  : <span class="Constant">&quot;application/mathml+xml&quot;</span>,
+<span class="lnr">462 </span>            <span class="Constant">&quot;.mbox&quot;</span>  : <span class="Constant">&quot;application/mbox&quot;</span>,
+<span class="lnr">463 </span>            <span class="Constant">&quot;.mdoc&quot;</span>  : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">464 </span>            <span class="Constant">&quot;.me&quot;</span>    : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">465 </span>            <span class="Constant">&quot;.mid&quot;</span>   : <span class="Constant">&quot;audio/midi&quot;</span>,
+<span class="lnr">466 </span>            <span class="Constant">&quot;.midi&quot;</span>  : <span class="Constant">&quot;audio/midi&quot;</span>,
+<span class="lnr">467 </span>            <span class="Constant">&quot;.mime&quot;</span>  : <span class="Constant">&quot;message/rfc822&quot;</span>,
+<span class="lnr">468 </span>            <span class="Constant">&quot;.mml&quot;</span>   : <span class="Constant">&quot;application/mathml+xml&quot;</span>,
+<span class="lnr">469 </span>            <span class="Constant">&quot;.mng&quot;</span>   : <span class="Constant">&quot;video/x-mng&quot;</span>,
+<span class="lnr">470 </span>            <span class="Constant">&quot;.mov&quot;</span>   : <span class="Constant">&quot;video/quicktime&quot;</span>,
+<span class="lnr">471 </span>            <span class="Constant">&quot;.mp3&quot;</span>   : <span class="Constant">&quot;audio/mpeg&quot;</span>,
+<span class="lnr">472 </span>            <span class="Constant">&quot;.mp4&quot;</span>   : <span class="Constant">&quot;video/mp4&quot;</span>,
+<span class="lnr">473 </span>            <span class="Constant">&quot;.mp4v&quot;</span>  : <span class="Constant">&quot;video/mp4&quot;</span>,
+<span class="lnr">474 </span>            <span class="Constant">&quot;.mpeg&quot;</span>  : <span class="Constant">&quot;video/mpeg&quot;</span>,
+<span class="lnr">475 </span>            <span class="Constant">&quot;.mpg&quot;</span>   : <span class="Constant">&quot;video/mpeg&quot;</span>,
+<span class="lnr">476 </span>            <span class="Constant">&quot;.ms&quot;</span>    : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">477 </span>            <span class="Constant">&quot;.msi&quot;</span>   : <span class="Constant">&quot;application/x-msdownload&quot;</span>,
+<span class="lnr">478 </span>            <span class="Constant">&quot;.odp&quot;</span>   : <span class="Constant">&quot;application/vnd.oasis.opendocument.presentation&quot;</span>,
+<span class="lnr">479 </span>            <span class="Constant">&quot;.ods&quot;</span>   : <span class="Constant">&quot;application/vnd.oasis.opendocument.spreadsheet&quot;</span>,
+<span class="lnr">480 </span>            <span class="Constant">&quot;.odt&quot;</span>   : <span class="Constant">&quot;application/vnd.oasis.opendocument.text&quot;</span>,
+<span class="lnr">481 </span>            <span class="Constant">&quot;.ogg&quot;</span>   : <span class="Constant">&quot;application/ogg&quot;</span>,
+<span class="lnr">482 </span>            <span class="Constant">&quot;.p&quot;</span>     : <span class="Constant">&quot;text/x-pascal&quot;</span>,
+<span class="lnr">483 </span>            <span class="Constant">&quot;.pas&quot;</span>   : <span class="Constant">&quot;text/x-pascal&quot;</span>,
+<span class="lnr">484 </span>            <span class="Constant">&quot;.pbm&quot;</span>   : <span class="Constant">&quot;image/x-portable-bitmap&quot;</span>,
+<span class="lnr">485 </span>            <span class="Constant">&quot;.pdf&quot;</span>   : <span class="Constant">&quot;application/pdf&quot;</span>,
+<span class="lnr">486 </span>            <span class="Constant">&quot;.pem&quot;</span>   : <span class="Constant">&quot;application/x-x509-ca-cert&quot;</span>,
+<span class="lnr">487 </span>            <span class="Constant">&quot;.pgm&quot;</span>   : <span class="Constant">&quot;image/x-portable-graymap&quot;</span>,
+<span class="lnr">488 </span>            <span class="Constant">&quot;.pgp&quot;</span>   : <span class="Constant">&quot;application/pgp-encrypted&quot;</span>,
+<span class="lnr">489 </span>            <span class="Constant">&quot;.pkg&quot;</span>   : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">490 </span>            <span class="Constant">&quot;.pl&quot;</span>    : <span class="Constant">&quot;text/x-script.perl&quot;</span>,
+<span class="lnr">491 </span>            <span class="Constant">&quot;.pm&quot;</span>    : <span class="Constant">&quot;text/x-script.perl-module&quot;</span>,
+<span class="lnr">492 </span>            <span class="Constant">&quot;.png&quot;</span>   : <span class="Constant">&quot;image/png&quot;</span>,
+<span class="lnr">493 </span>            <span class="Constant">&quot;.pnm&quot;</span>   : <span class="Constant">&quot;image/x-portable-anymap&quot;</span>,
+<span class="lnr">494 </span>            <span class="Constant">&quot;.ppm&quot;</span>   : <span class="Constant">&quot;image/x-portable-pixmap&quot;</span>,
+<span class="lnr">495 </span>            <span class="Constant">&quot;.pps&quot;</span>   : <span class="Constant">&quot;application/vnd.ms-powerpoint&quot;</span>,
+<span class="lnr">496 </span>            <span class="Constant">&quot;.ppt&quot;</span>   : <span class="Constant">&quot;application/vnd.ms-powerpoint&quot;</span>,
+<span class="lnr">497 </span>            <span class="Constant">&quot;.ps&quot;</span>    : <span class="Constant">&quot;application/postscript&quot;</span>,
+<span class="lnr">498 </span>            <span class="Constant">&quot;.psd&quot;</span>   : <span class="Constant">&quot;image/vnd.adobe.photoshop&quot;</span>,
+<span class="lnr">499 </span>            <span class="Constant">&quot;.py&quot;</span>    : <span class="Constant">&quot;text/x-script.python&quot;</span>,
+<span class="lnr">500 </span>            <span class="Constant">&quot;.qt&quot;</span>    : <span class="Constant">&quot;video/quicktime&quot;</span>,
+<span class="lnr">501 </span>            <span class="Constant">&quot;.ra&quot;</span>    : <span class="Constant">&quot;audio/x-pn-realaudio&quot;</span>,
+<span class="lnr">502 </span>            <span class="Constant">&quot;.rake&quot;</span>  : <span class="Constant">&quot;text/x-script.ruby&quot;</span>,
+<span class="lnr">503 </span>            <span class="Constant">&quot;.ram&quot;</span>   : <span class="Constant">&quot;audio/x-pn-realaudio&quot;</span>,
+<span class="lnr">504 </span>            <span class="Constant">&quot;.rar&quot;</span>   : <span class="Constant">&quot;application/x-rar-compressed&quot;</span>,
+<span class="lnr">505 </span>            <span class="Constant">&quot;.rb&quot;</span>    : <span class="Constant">&quot;text/x-script.ruby&quot;</span>,
+<span class="lnr">506 </span>            <span class="Constant">&quot;.rdf&quot;</span>   : <span class="Constant">&quot;application/rdf+xml&quot;</span>,
+<span class="lnr">507 </span>            <span class="Constant">&quot;.roff&quot;</span>  : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">508 </span>            <span class="Constant">&quot;.rpm&quot;</span>   : <span class="Constant">&quot;application/x-redhat-package-manager&quot;</span>,
+<span class="lnr">509 </span>            <span class="Constant">&quot;.rss&quot;</span>   : <span class="Constant">&quot;application/rss+xml&quot;</span>,
+<span class="lnr">510 </span>            <span class="Constant">&quot;.rtf&quot;</span>   : <span class="Constant">&quot;application/rtf&quot;</span>,
+<span class="lnr">511 </span>            <span class="Constant">&quot;.ru&quot;</span>    : <span class="Constant">&quot;text/x-script.ruby&quot;</span>,
+<span class="lnr">512 </span>            <span class="Constant">&quot;.s&quot;</span>     : <span class="Constant">&quot;text/x-asm&quot;</span>,
+<span class="lnr">513 </span>            <span class="Constant">&quot;.sgm&quot;</span>   : <span class="Constant">&quot;text/sgml&quot;</span>,
+<span class="lnr">514 </span>            <span class="Constant">&quot;.sgml&quot;</span>  : <span class="Constant">&quot;text/sgml&quot;</span>,
+<span class="lnr">515 </span>            <span class="Constant">&quot;.sh&quot;</span>    : <span class="Constant">&quot;application/x-sh&quot;</span>,
+<span class="lnr">516 </span>            <span class="Constant">&quot;.sig&quot;</span>   : <span class="Constant">&quot;application/pgp-signature&quot;</span>,
+<span class="lnr">517 </span>            <span class="Constant">&quot;.snd&quot;</span>   : <span class="Constant">&quot;audio/basic&quot;</span>,
+<span class="lnr">518 </span>            <span class="Constant">&quot;.so&quot;</span>    : <span class="Constant">&quot;application/octet-stream&quot;</span>,
+<span class="lnr">519 </span>            <span class="Constant">&quot;.svg&quot;</span>   : <span class="Constant">&quot;image/svg+xml&quot;</span>,
+<span class="lnr">520 </span>            <span class="Constant">&quot;.svgz&quot;</span>  : <span class="Constant">&quot;image/svg+xml&quot;</span>,
+<span class="lnr">521 </span>            <span class="Constant">&quot;.swf&quot;</span>   : <span class="Constant">&quot;application/x-shockwave-flash&quot;</span>,
+<span class="lnr">522 </span>            <span class="Constant">&quot;.t&quot;</span>     : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">523 </span>            <span class="Constant">&quot;.tar&quot;</span>   : <span class="Constant">&quot;application/x-tar&quot;</span>,
+<span class="lnr">524 </span>            <span class="Constant">&quot;.tbz&quot;</span>   : <span class="Constant">&quot;application/x-bzip-compressed-tar&quot;</span>,
+<span class="lnr">525 </span>            <span class="Constant">&quot;.tci&quot;</span>   : <span class="Constant">&quot;application/x-topcloud&quot;</span>,
+<span class="lnr">526 </span>            <span class="Constant">&quot;.tcl&quot;</span>   : <span class="Constant">&quot;application/x-tcl&quot;</span>,
+<span class="lnr">527 </span>            <span class="Constant">&quot;.tex&quot;</span>   : <span class="Constant">&quot;application/x-tex&quot;</span>,
+<span class="lnr">528 </span>            <span class="Constant">&quot;.texi&quot;</span>  : <span class="Constant">&quot;application/x-texinfo&quot;</span>,
+<span class="lnr">529 </span>            <span class="Constant">&quot;.texinfo&quot;</span> : <span class="Constant">&quot;application/x-texinfo&quot;</span>,
+<span class="lnr">530 </span>            <span class="Constant">&quot;.text&quot;</span>  : <span class="Constant">&quot;text/plain&quot;</span>,
+<span class="lnr">531 </span>            <span class="Constant">&quot;.tif&quot;</span>   : <span class="Constant">&quot;image/tiff&quot;</span>,
+<span class="lnr">532 </span>            <span class="Constant">&quot;.tiff&quot;</span>  : <span class="Constant">&quot;image/tiff&quot;</span>,
+<span class="lnr">533 </span>            <span class="Constant">&quot;.torrent&quot;</span> : <span class="Constant">&quot;application/x-bittorrent&quot;</span>,
+<span class="lnr">534 </span>            <span class="Constant">&quot;.tr&quot;</span>    : <span class="Constant">&quot;text/troff&quot;</span>,
+<span class="lnr">535 </span>            <span class="Constant">&quot;.ttf&quot;</span>   : <span class="Constant">&quot;application/x-font-ttf&quot;</span>,
+<span class="lnr">536 </span>            <span class="Constant">&quot;.txt&quot;</span>   : <span class="Constant">&quot;text/plain&quot;</span>,
+<span class="lnr">537 </span>            <span class="Constant">&quot;.vcf&quot;</span>   : <span class="Constant">&quot;text/x-vcard&quot;</span>,
+<span class="lnr">538 </span>            <span class="Constant">&quot;.vcs&quot;</span>   : <span class="Constant">&quot;text/x-vcalendar&quot;</span>,
+<span class="lnr">539 </span>            <span class="Constant">&quot;.vrml&quot;</span>  : <span class="Constant">&quot;model/vrml&quot;</span>,
+<span class="lnr">540 </span>            <span class="Constant">&quot;.war&quot;</span>   : <span class="Constant">&quot;application/java-archive&quot;</span>,
+<span class="lnr">541 </span>            <span class="Constant">&quot;.wav&quot;</span>   : <span class="Constant">&quot;audio/x-wav&quot;</span>,
+<span class="lnr">542 </span>            <span class="Constant">&quot;.wma&quot;</span>   : <span class="Constant">&quot;audio/x-ms-wma&quot;</span>,
+<span class="lnr">543 </span>            <span class="Constant">&quot;.wmv&quot;</span>   : <span class="Constant">&quot;video/x-ms-wmv&quot;</span>,
+<span class="lnr">544 </span>            <span class="Constant">&quot;.wmx&quot;</span>   : <span class="Constant">&quot;video/x-ms-wmx&quot;</span>,
+<span class="lnr">545 </span>            <span class="Constant">&quot;.wrl&quot;</span>   : <span class="Constant">&quot;model/vrml&quot;</span>,
+<span class="lnr">546 </span>            <span class="Constant">&quot;.wsdl&quot;</span>  : <span class="Constant">&quot;application/wsdl+xml&quot;</span>,
+<span class="lnr">547 </span>            <span class="Constant">&quot;.xbm&quot;</span>   : <span class="Constant">&quot;image/x-xbitmap&quot;</span>,
+<span class="lnr">548 </span>            <span class="Constant">&quot;.xhtml&quot;</span>   : <span class="Constant">&quot;application/xhtml+xml&quot;</span>,
+<span class="lnr">549 </span>            <span class="Constant">&quot;.xls&quot;</span>   : <span class="Constant">&quot;application/vnd.ms-excel&quot;</span>,
+<span class="lnr">550 </span>            <span class="Constant">&quot;.xml&quot;</span>   : <span class="Constant">&quot;application/xml&quot;</span>,
+<span class="lnr">551 </span>            <span class="Constant">&quot;.xpm&quot;</span>   : <span class="Constant">&quot;image/x-xpixmap&quot;</span>,
+<span class="lnr">552 </span>            <span class="Constant">&quot;.xsl&quot;</span>   : <span class="Constant">&quot;application/xml&quot;</span>,
+<span class="lnr">553 </span>            <span class="Constant">&quot;.xslt&quot;</span>  : <span class="Constant">&quot;application/xslt+xml&quot;</span>,
+<span class="lnr">554 </span>            <span class="Constant">&quot;.yaml&quot;</span>  : <span class="Constant">&quot;text/yaml&quot;</span>,
+<span class="lnr">555 </span>            <span class="Constant">&quot;.yml&quot;</span>   : <span class="Constant">&quot;text/yaml&quot;</span>,
+<span class="lnr">556 </span>            <span class="Constant">&quot;.zip&quot;</span>   : <span class="Constant">&quot;application/zip&quot;</span>
+<span class="lnr">557 </span>          <span class="Identifier">}</span>
+<span class="lnr">558 </span><span class="Identifier">}</span>;
+</pre>
+</body>
+</html>
