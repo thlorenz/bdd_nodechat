@@ -1,21 +1,27 @@
-server = exports
-
 HOST = "localhost"
 PORT = 8001
 
 MESSAGE_BACKLOG = 200
 SESSION_TIMEOUT = 60 * 1000
 
-server.init = (fake = { }) ->
+exports.init = (config) ->
 
-  sys = fake.sys or require "sys"
-  router = fake.router or require("./lib/node-router")
-  server = router.getServer()
+  throw "Need to pass in config object that has required verbs like log, route, etc." unless config? 
 
-  qs = fake.qs or require "querystring"
-  url = fake.url or require "url"
+  # States 
+  env          =  config.env
 
-  process = fake.process or global.process
+  # Verbs
+  memoryUsage  =  ()            -> config.memoryUsage()
+  
+  log          =  (msg)         -> config.log msg
+  route_static =  (file)        -> config.route_static file
+  route        =  (req, res)    -> config.route req, res
+  listen       =  (port, host)  -> config.listen port, host
+
+  # Modules
+  qs           =  require "querystring"
+  url          =  require "url"
 
   sessions = {} 
 
@@ -32,9 +38,9 @@ server.init = (fake = { }) ->
         timestamp: (new Date).getTime()
       
       switch type
-        when "msg"  then sys.puts "<#{nick}> #{text}"
-        when "join" then sys.puts "#{nick} joined"
-        when "part" then sys.puts "#{nick} part"
+        when "msg"  then log "<#{nick}> #{text}"
+        when "join" then log "#{nick} joined"
+        when "part" then log "#{nick} part"
 
       messages.push m
 
@@ -95,20 +101,20 @@ server.init = (fake = { }) ->
   startTime = (new Date).getTime()
 
   mem = null
-  updateMemory = -> mem = process.memoryUsage()
+  updateMemory = -> mem = memoryUsage()
 
   updateMemory() 
 
   setInterval updateMemory, 10 * 1000 
 
-  server.listen Number(process.env.PORT or PORT), HOST
+  listen Number(env.PORT or PORT), HOST
 
-  server.get "/", router.staticHandler "index.html"
-  server.get "/style.css", router.staticHandler "style.css"
-  server.get "/client.js", router.staticHandler "client.js"
-  server.get "/jquery-1.2.6.min.js", router.staticHandler "jquery-1.2.6.min.js"
+  route "/", route_static "index.html"
+  route "/style.css", route_static "style.css"
+  route "/client.js", route_static "client.js"
+  route "/jquery-1.2.6.min.js", route_static "jquery-1.2.6.min.js"
 
-  server.get "/join", (req, res) ->
+  route "/join", (req, res) ->
     nick = qs.parse(url.parse(req.url).query).nick
     if nick?.length is 0
       res.simpleJson 400, error: "Bad nick"
@@ -119,7 +125,7 @@ server.init = (fake = { }) ->
       return res.simpleJson 400, error: "Nick in use"
       
 
-    sys.puts "connection: #{nick}@#{res.connection.remoteAddress}"
+    log "connection: #{nick}@#{res.connection.remoteAddress}"
 
     channel.appendMessage session.nick, "join"
     res.simpleJson 200,
@@ -128,15 +134,14 @@ server.init = (fake = { }) ->
       rss: mem.rss
       starttime: startTime
 
-  server.get "/who", (req, res) ->
+  route "/who", (req, res) ->
     nicks = []
-
     for id of sessions
       nicks.push sessions[id].nick
 
     res.simpleJson 200, { nicks: nicks, rss: mem.rss }
 
-  server.get "/part", (req, res) ->
+  route "/part", (req, res) ->
     id = qs.parse(url.parse(req.url).query).id
     if id && sessions[id]
       sessions[id].destroy()
@@ -144,7 +149,7 @@ server.init = (fake = { }) ->
     res.simpleJson 200, rss: mem.rss
     
 
-  server.get "/recv", (req, res) ->
+  route "/recv", (req, res) ->
     since_string = qs.parse(url.parse(req.url).query).since
 
     unless since_string
@@ -164,7 +169,7 @@ server.init = (fake = { }) ->
         messages: messages
         rss: mem.rss
 
-  server.get "/send", (req, res) ->
+  route "/send", (req, res) ->
     id = qs.parse(url.parse(req.url).query).id
 
     text = qs.parse(url.parse(req.url).query).text

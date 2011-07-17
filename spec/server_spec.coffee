@@ -16,16 +16,7 @@ beforeEach ->
     isEmpty: -> @actual.length == 0
     toContainOnly: (item) -> @actual.length is 1 and @actual[0] is item
   
-  server_stub = 
-    gets: {}
-    get: (id, callback) -> @gets[id] = callback; undefined
-    listens_on: {}
-    listen: (port, host) -> @listens_on = { port: port, host: host }
-  
-  @server_stub = server_stub 
-  @router_stub =
-    getServer: -> server_stub 
-    staticHandler: (file) -> 
+  routes = {}
 
   @res_stub =  
     code: -1, obj: {}
@@ -35,23 +26,29 @@ beforeEach ->
 
   @server_get = (method, req = { }) -> 
     res = @res_stub 
-    @server_stub.gets["/#{method}"] req, res
+    routes["/#{method}"] req, res
     res
 
   @query_messages = (since, id) ->
     res = @server_get 'recv', { url: "/recv?since=#{since}&id=#{id}" }
     res.obj.messages
 
+  @listens_on = {}
+  
   @sut = require("./../server")
   @sut.init
     router: @router_stub
-    sys: { puts: (msg) ->  } # stop sys.puts from cluttering up the test output
-    process: process_stub
+    route_static: (file) -> 
+    route: (id, callback) -> routes[id] = callback; undefined
+    listen: (port, host) => @listens_on = port: port, host: host 
+    log:  (msg) -> # don't clutter up the test output
+    memoryUsage: -> rss: mem_rss_stub 
+    env: PORT: port_stub
 
 describe 'given a chat server with no sessions', ->
 
-  it 'listens on the given port', -> expect(@server_stub.listens_on.port).toEqual port_stub 
-  it 'listens on a host', -> expect(@server_stub.listens_on.host).not.isEmpty()
+  it 'listens on the given port', -> expect(@listens_on.port).toEqual port_stub 
+  it 'listens on a host', -> expect(@listens_on.host).not.isEmpty()
 
   describe 'and i ask who is connected', ->
     beforeEach -> @res = @server_get 'who'
