@@ -8,12 +8,11 @@ exports.init = (config) ->
 
   throw "Need to pass in config object that has required verbs like log, route, etc." unless config? 
 
-  # States 
+  # Nouns 
   env          =  config.env
 
   # Verbs
   memoryUsage  =  ()            -> config.memoryUsage()
-  
   log          =  (msg)         -> config.log msg
   route_static =  (file)        -> config.route_static file
   route        =  (req, res)    -> config.route req, res

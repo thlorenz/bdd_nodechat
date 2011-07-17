@@ -4,16 +4,20 @@ server = router.getServer()
 
 chat_server = require "./server"
 
+verbose_route = (req, res) ->
+  console.log "Routing request: ", req
+  server.get req, res
+
 chat_server.init 
 
-  # Nouns
+  # States
   env:            process.env
+  memoryUsage:    process.memoryUsage
 
   # Verbs
-  memoryUsage:    process.memoryUsage
   log:            sys.puts
   route_static:   router.staticHandler
-  route:          server.get
+  route:          verbose_route 
   listen:         server.listen
 
 
