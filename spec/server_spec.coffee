@@ -16,7 +16,6 @@ beforeEach ->
     isEmpty: -> @actual.length == 0
     toContainOnly: (item) -> @actual.length is 1 and @actual[0] is item
   
-  routes = {}
 
   @res_stub =  
     code: -1, obj: {}
@@ -24,20 +23,21 @@ beforeEach ->
     connection:
       remoteAddress: "some address"
 
-  @server_get = (method, req = { }) -> 
-    res = @res_stub 
-    routes["/#{method}"] req, res
-    res
 
   @query_messages = (since, id) ->
     res = @server_get 'recv', { url: "/recv?since=#{since}&id=#{id}" }
     res.obj.messages
 
   @listens_on = {}
+  routes = {}
   
+  @server_get = (method, req = { }) -> 
+    res = @res_stub 
+    routes["/#{method}"] req, res
+    res
+
   @sut = require("./../server")
   @sut.init
-    router: @router_stub
     route_static: (file) -> 
     route: (id, callback) -> routes[id] = callback; undefined
     listen: (port, host) => @listens_on = port: port, host: host 
