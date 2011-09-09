@@ -1,0 +1,424 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/Dropboxes/Gmail/Dropbox/dev/javascript/node/sourcetopdf/node_modules/seq/index.js.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="javascript">
+<meta name="settings" content="use_css,number_lines">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #ffffff; background-color: #333333; }
+body { font-family: monospace; color: #ffffff; background-color: #333333; }
+.lnr { color: #ffff00; }
+.Comment { color: #87ceeb; }
+.Type { color: #bdb76b; font-weight: bold; }
+.Statement { color: #f0e68c; font-weight: bold; }
+.Constant { color: #ffa0a0; }
+.Identifier { color: #98fb98; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span><span class="Identifier">var</span> EventEmitter = require(<span class="Constant">'events'</span>).EventEmitter;
+<span class="lnr">  2 </span><span class="Identifier">var</span> Hash = require(<span class="Constant">'hashish'</span>);
+<span class="lnr">  3 </span><span class="Identifier">var</span> Chainsaw = require(<span class="Constant">'chainsaw'</span>);
+<span class="lnr">  4 </span>
+<span class="lnr">  5 </span>module.exports = Seq;
+<span class="lnr">  6 </span><span class="Identifier">function</span> Seq (xs) <span class="Identifier">{</span>
+<span class="lnr">  7 </span>    <span class="Statement">if</span> (xs &amp;&amp; !<span class="Type">Array</span>.isArray(xs) || <span class="Identifier">arguments</span>.length &gt; 1) <span class="Identifier">{</span>
+<span class="lnr">  8 </span>        <span class="Statement">throw</span> <span class="Statement">new</span> Error(<span class="Constant">'Optional argument to Seq() is exactly one Array'</span>);
+<span class="lnr">  9 </span>    <span class="Identifier">}</span>
+<span class="lnr"> 10 </span>
+<span class="lnr"> 11 </span>    <span class="Identifier">var</span> ch = Chainsaw(<span class="Identifier">function</span> (saw) <span class="Identifier">{</span>
+<span class="lnr"> 12 </span>        builder.call(<span class="Identifier">this</span>, saw, xs || <span class="Identifier">[]</span>);
+<span class="lnr"> 13 </span>    <span class="Identifier">}</span>);
+<span class="lnr"> 14 </span>
+<span class="lnr"> 15 </span>    process.nextTick(<span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr"> 16 </span>        ch<span class="Identifier">[</span><span class="Constant">'catch'</span><span class="Identifier">]</span>(<span class="Identifier">function</span> (err) <span class="Identifier">{</span>
+<span class="lnr"> 17 </span>            console.error(err.stack ? err.stack : err)
+<span class="lnr"> 18 </span>        <span class="Identifier">}</span>);
+<span class="lnr"> 19 </span>    <span class="Identifier">}</span>);
+<span class="lnr"> 20 </span>    <span class="Statement">return</span> ch;
+<span class="lnr"> 21 </span><span class="Identifier">}</span>
+<span class="lnr"> 22 </span>
+<span class="lnr"> 23 </span>Seq.ap = Seq; <span class="Comment">// for compatability with versions &lt;0.3</span>
+<span class="lnr"> 24 </span>
+<span class="lnr"> 25 </span><span class="Identifier">function</span> builder (saw, xs) <span class="Identifier">{</span>
+<span class="lnr"> 26 </span>    <span class="Identifier">var</span> context = <span class="Identifier">{</span>
+<span class="lnr"> 27 </span>        vars : <span class="Identifier">{}</span>,
+<span class="lnr"> 28 </span>        args : <span class="Identifier">{}</span>,
+<span class="lnr"> 29 </span>        stack : xs,
+<span class="lnr"> 30 </span>        error : <span class="Statement">null</span>
+<span class="lnr"> 31 </span>    <span class="Identifier">}</span>;
+<span class="lnr"> 32 </span>    context.stack_ = context.stack;
+<span class="lnr"> 33 </span>
+<span class="lnr"> 34 </span>    <span class="Identifier">function</span> action (step, key, f, g) <span class="Identifier">{</span>
+<span class="lnr"> 35 </span>        <span class="Identifier">var</span> cb = <span class="Identifier">function</span> (err) <span class="Identifier">{</span>
+<span class="lnr"> 36 </span>            <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>, 1);
+<span class="lnr"> 37 </span>            <span class="Statement">if</span> (err) <span class="Identifier">{</span>
+<span class="lnr"> 38 </span>                context.error = <span class="Identifier">{</span> message : err, key : key <span class="Identifier">}</span>;
+<span class="lnr"> 39 </span>                saw.jump(lastPar);
+<span class="lnr"> 40 </span>                saw.down(<span class="Constant">'catch'</span>);
+<span class="lnr"> 41 </span>                g();
+<span class="lnr"> 42 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 43 </span>            <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr"> 44 </span>                <span class="Statement">if</span> (<span class="Statement">typeof</span> key == <span class="Constant">'number'</span>) <span class="Identifier">{</span>
+<span class="lnr"> 45 </span>                    context.stack_<span class="Identifier">[</span>key<span class="Identifier">]</span> = args<span class="Identifier">[</span>0<span class="Identifier">]</span>;
+<span class="lnr"> 46 </span>                    context.args<span class="Identifier">[</span>key<span class="Identifier">]</span> = args;
+<span class="lnr"> 47 </span>                <span class="Identifier">}</span>
+<span class="lnr"> 48 </span>                <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr"> 49 </span>                    context.stack_.push.apply(context.stack_, args);
+<span class="lnr"> 50 </span>                    <span class="Statement">if</span> (key !== <span class="Statement">undefined</span>) <span class="Identifier">{</span>
+<span class="lnr"> 51 </span>                        context.vars<span class="Identifier">[</span>key<span class="Identifier">]</span> = args<span class="Identifier">[</span>0<span class="Identifier">]</span>;
+<span class="lnr"> 52 </span>                        context.args<span class="Identifier">[</span>key<span class="Identifier">]</span> = args;
+<span class="lnr"> 53 </span>                    <span class="Identifier">}</span>
+<span class="lnr"> 54 </span>                <span class="Identifier">}</span>
+<span class="lnr"> 55 </span>                <span class="Statement">if</span> (g) g(args, key);
+<span class="lnr"> 56 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 57 </span>        <span class="Identifier">}</span>;
+<span class="lnr"> 58 </span>        Hash(context).forEach(<span class="Identifier">function</span> (v,k) <span class="Identifier">{</span> cb<span class="Identifier">[</span>k<span class="Identifier">]</span> = v <span class="Identifier">}</span>);
+<span class="lnr"> 59 </span>
+<span class="lnr"> 60 </span>        cb.into = <span class="Identifier">function</span> (k) <span class="Identifier">{</span>
+<span class="lnr"> 61 </span>            key = k;
+<span class="lnr"> 62 </span>            <span class="Statement">return</span> cb;
+<span class="lnr"> 63 </span>        <span class="Identifier">}</span>;
+<span class="lnr"> 64 </span>
+<span class="lnr"> 65 </span>        cb.next = <span class="Identifier">function</span> (err, xs) <span class="Identifier">{</span>
+<span class="lnr"> 66 </span>            context.stack_.push.apply(context.stack_, xs);
+<span class="lnr"> 67 </span>            cb.apply(cb, <span class="Identifier">[</span>err<span class="Identifier">]</span>.concat(context.stack));
+<span class="lnr"> 68 </span>        <span class="Identifier">}</span>;
+<span class="lnr"> 69 </span>
+<span class="lnr"> 70 </span>        cb.pass = <span class="Identifier">function</span> (err) <span class="Identifier">{</span>
+<span class="lnr"> 71 </span>            cb.apply(cb, <span class="Identifier">[</span>err<span class="Identifier">]</span>.concat(context.stack));
+<span class="lnr"> 72 </span>        <span class="Identifier">}</span>;
+<span class="lnr"> 73 </span>
+<span class="lnr"> 74 </span>        cb.ok = cb.bind(cb, <span class="Statement">null</span>);
+<span class="lnr"> 75 </span>
+<span class="lnr"> 76 </span>        f.apply(cb, context.stack);
+<span class="lnr"> 77 </span>    <span class="Identifier">}</span>
+<span class="lnr"> 78 </span>
+<span class="lnr"> 79 </span>    <span class="Identifier">var</span> running = 0;
+<span class="lnr"> 80 </span>    <span class="Identifier">var</span> errors = 0;
+<span class="lnr"> 81 </span>
+<span class="lnr"> 82 </span>    <span class="Identifier">this</span>.seq = <span class="Identifier">function</span> (key, cb) <span class="Identifier">{</span>
+<span class="lnr"> 83 </span>        <span class="Identifier">var</span> bound = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>, 2);
+<span class="lnr"> 84 </span>
+<span class="lnr"> 85 </span>        <span class="Statement">if</span> (<span class="Statement">typeof</span> key === <span class="Constant">'function'</span>) <span class="Identifier">{</span>
+<span class="lnr"> 86 </span>            <span class="Statement">if</span> (<span class="Identifier">arguments</span>.length &gt; 1) bound.unshift(cb);
+<span class="lnr"> 87 </span>            cb = key;
+<span class="lnr"> 88 </span>            key = <span class="Statement">undefined</span>;
+<span class="lnr"> 89 </span>        <span class="Identifier">}</span>
+<span class="lnr"> 90 </span>
+<span class="lnr"> 91 </span>        <span class="Statement">if</span> (context.error) saw.next()
+<span class="lnr"> 92 </span>        <span class="Statement">else</span> <span class="Statement">if</span> (running === 0) <span class="Identifier">{</span>
+<span class="lnr"> 93 </span>            action(saw.step, key,
+<span class="lnr"> 94 </span>                <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr"> 95 </span>                    context.stack_ = <span class="Identifier">[]</span>;
+<span class="lnr"> 96 </span>                    <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr"> 97 </span>                    args.unshift.apply(args, bound.map(<span class="Identifier">function</span> (arg) <span class="Identifier">{</span>
+<span class="lnr"> 98 </span>                        <span class="Statement">return</span> arg === Seq ? <span class="Identifier">this</span> : arg
+<span class="lnr"> 99 </span>                    <span class="Identifier">}</span>, <span class="Identifier">this</span>));
+<span class="lnr">100 </span>
+<span class="lnr">101 </span>                    cb.apply(<span class="Identifier">this</span>, args);
+<span class="lnr">102 </span>                <span class="Identifier">}</span>, <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">103 </span>                    context.stack = context.stack_;
+<span class="lnr">104 </span>                    saw.next()
+<span class="lnr">105 </span>                <span class="Identifier">}</span>
+<span class="lnr">106 </span>            );
+<span class="lnr">107 </span>        <span class="Identifier">}</span>
+<span class="lnr">108 </span>    <span class="Identifier">}</span>;
+<span class="lnr">109 </span>
+<span class="lnr">110 </span>    <span class="Identifier">var</span> lastPar = <span class="Statement">null</span>;
+<span class="lnr">111 </span>    <span class="Identifier">this</span>.par = <span class="Identifier">function</span> (key, cb) <span class="Identifier">{</span>
+<span class="lnr">112 </span>        lastPar = saw.step;
+<span class="lnr">113 </span>
+<span class="lnr">114 </span>        <span class="Statement">if</span> (running == 0) <span class="Identifier">{</span>
+<span class="lnr">115 </span>            <span class="Comment">// empty the active stack for the first par() in a chain</span>
+<span class="lnr">116 </span>            context.stack_ = <span class="Identifier">[]</span>;
+<span class="lnr">117 </span>        <span class="Identifier">}</span>
+<span class="lnr">118 </span>
+<span class="lnr">119 </span>        <span class="Identifier">var</span> bound = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>, 2);
+<span class="lnr">120 </span>        <span class="Statement">if</span> (<span class="Statement">typeof</span> key === <span class="Constant">'function'</span>) <span class="Identifier">{</span>
+<span class="lnr">121 </span>            <span class="Statement">if</span> (<span class="Identifier">arguments</span>.length &gt; 1) bound.unshift(cb);
+<span class="lnr">122 </span>            cb = key;
+<span class="lnr">123 </span>            key = context.stack_.length;
+<span class="lnr">124 </span>            context.stack_.push(<span class="Statement">null</span>);
+<span class="lnr">125 </span>        <span class="Identifier">}</span>
+<span class="lnr">126 </span>        <span class="Identifier">var</span> cb_ = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">127 </span>            <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">128 </span>            args.unshift.apply(args, bound.map(<span class="Identifier">function</span> (arg) <span class="Identifier">{</span>
+<span class="lnr">129 </span>                <span class="Statement">return</span> arg === Seq ? <span class="Identifier">this</span> : arg
+<span class="lnr">130 </span>            <span class="Identifier">}</span>, <span class="Identifier">this</span>));
+<span class="lnr">131 </span>
+<span class="lnr">132 </span>            cb.apply(<span class="Identifier">this</span>, args);
+<span class="lnr">133 </span>        <span class="Identifier">}</span>;
+<span class="lnr">134 </span>
+<span class="lnr">135 </span>        running ++;
+<span class="lnr">136 </span>
+<span class="lnr">137 </span>        <span class="Identifier">var</span> step = saw.step;
+<span class="lnr">138 </span>        process.nextTick(<span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">139 </span>            action(step, key, cb_, <span class="Identifier">function</span> (args) <span class="Identifier">{</span>
+<span class="lnr">140 </span>                <span class="Statement">if</span> (!args) errors ++;
+<span class="lnr">141 </span>
+<span class="lnr">142 </span>                running --;
+<span class="lnr">143 </span>                <span class="Statement">if</span> (running == 0) <span class="Identifier">{</span>
+<span class="lnr">144 </span>                    context.stack = context.stack_.slice();
+<span class="lnr">145 </span>                    saw.step = lastPar;
+<span class="lnr">146 </span>                    <span class="Statement">if</span> (errors &gt; 0) saw.down(<span class="Constant">'catch'</span>);
+<span class="lnr">147 </span>                    errors = 0;
+<span class="lnr">148 </span>                    saw.next();
+<span class="lnr">149 </span>                <span class="Identifier">}</span>
+<span class="lnr">150 </span>            <span class="Identifier">}</span>);
+<span class="lnr">151 </span>        <span class="Identifier">}</span>);
+<span class="lnr">152 </span>        saw.next();
+<span class="lnr">153 </span>    <span class="Identifier">}</span>;
+<span class="lnr">154 </span>
+<span class="lnr">155 </span>    <span class="Identifier">[</span> <span class="Constant">'seq'</span>, <span class="Constant">'par'</span> <span class="Identifier">]</span>.forEach(<span class="Identifier">function</span> (name) <span class="Identifier">{</span>
+<span class="lnr">156 </span>        <span class="Identifier">this</span><span class="Identifier">[</span>name + <span class="Constant">'_'</span><span class="Identifier">]</span> = <span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr">157 </span>            <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">158 </span>
+<span class="lnr">159 </span>            <span class="Identifier">var</span> cb = <span class="Statement">typeof</span> key === <span class="Constant">'function'</span>
+<span class="lnr">160 </span>                ? args<span class="Identifier">[</span>0<span class="Identifier">]</span> : args<span class="Identifier">[</span>1<span class="Identifier">]</span>;
+<span class="lnr">161 </span>
+<span class="lnr">162 </span>            <span class="Identifier">var</span> fn = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">163 </span>                <span class="Identifier">var</span> argv = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">164 </span>                argv.unshift(<span class="Identifier">this</span>);
+<span class="lnr">165 </span>                cb.apply(<span class="Identifier">this</span>, argv);
+<span class="lnr">166 </span>            <span class="Identifier">}</span>;
+<span class="lnr">167 </span>
+<span class="lnr">168 </span>            <span class="Statement">if</span> (<span class="Statement">typeof</span> key === <span class="Constant">'function'</span>) <span class="Identifier">{</span>
+<span class="lnr">169 </span>                args<span class="Identifier">[</span>0<span class="Identifier">]</span> = fn;
+<span class="lnr">170 </span>            <span class="Identifier">}</span>
+<span class="lnr">171 </span>            <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">172 </span>                args<span class="Identifier">[</span>1<span class="Identifier">]</span> = fn;
+<span class="lnr">173 </span>            <span class="Identifier">}</span>
+<span class="lnr">174 </span>
+<span class="lnr">175 </span>            <span class="Identifier">this</span><span class="Identifier">[</span>name<span class="Identifier">]</span>.apply(<span class="Identifier">this</span>, args);
+<span class="lnr">176 </span>        <span class="Identifier">}</span>;
+<span class="lnr">177 </span>    <span class="Identifier">}</span>, <span class="Identifier">this</span>);
+<span class="lnr">178 </span>
+<span class="lnr">179 </span>    <span class="Identifier">this</span><span class="Identifier">[</span><span class="Constant">'catch'</span><span class="Identifier">]</span> = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">180 </span>        <span class="Statement">if</span> (context.error) <span class="Identifier">{</span>
+<span class="lnr">181 </span>            cb.call(context, context.error.message, context.error.key);
+<span class="lnr">182 </span>            context.error = <span class="Statement">null</span>;
+<span class="lnr">183 </span>        <span class="Identifier">}</span>
+<span class="lnr">184 </span>        saw.next();
+<span class="lnr">185 </span>    <span class="Identifier">}</span>;
+<span class="lnr">186 </span>
+<span class="lnr">187 </span>    <span class="Identifier">this</span>.forEach = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">188 </span>        <span class="Identifier">this</span>.seq(<span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">189 </span>            context.stack_ = context.stack.slice();
+<span class="lnr">190 </span>            <span class="Identifier">var</span> end = context.stack.length;
+<span class="lnr">191 </span>
+<span class="lnr">192 </span>            <span class="Statement">if</span> (end === 0) <span class="Identifier">this</span>(<span class="Statement">null</span>)
+<span class="lnr">193 </span>            <span class="Statement">else</span> context.stack.forEach(<span class="Identifier">function</span> (x, i) <span class="Identifier">{</span>
+<span class="lnr">194 </span>                action(saw.step, i, <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">195 </span>                    cb.call(<span class="Identifier">this</span>, x, i);
+<span class="lnr">196 </span>                    <span class="Statement">if</span> (i == end - 1) saw.next();
+<span class="lnr">197 </span>                <span class="Identifier">}</span>);
+<span class="lnr">198 </span>            <span class="Identifier">}</span>);
+<span class="lnr">199 </span>        <span class="Identifier">}</span>);
+<span class="lnr">200 </span>    <span class="Identifier">}</span>;
+<span class="lnr">201 </span>
+<span class="lnr">202 </span>    <span class="Identifier">this</span>.seqEach = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">203 </span>        <span class="Identifier">this</span>.seq(<span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">204 </span>            context.stack_ = context.stack.slice();
+<span class="lnr">205 </span>            <span class="Identifier">var</span> xs = context.stack.slice();
+<span class="lnr">206 </span>            <span class="Statement">if</span> (xs.length === 0) <span class="Identifier">this</span>(<span class="Statement">null</span>);
+<span class="lnr">207 </span>            <span class="Statement">else</span> (<span class="Identifier">function</span> next (i) <span class="Identifier">{</span>
+<span class="lnr">208 </span>                action(
+<span class="lnr">209 </span>                    saw.step, i,
+<span class="lnr">210 </span>                    <span class="Identifier">function</span> () <span class="Identifier">{</span> cb.call(<span class="Identifier">this</span>, xs<span class="Identifier">[</span>i<span class="Identifier">]</span>, i) <span class="Identifier">}</span>,
+<span class="lnr">211 </span>                    <span class="Identifier">function</span> (args) <span class="Identifier">{</span>
+<span class="lnr">212 </span>                        <span class="Statement">if</span> (!args || i === xs.length - 1) saw.next();
+<span class="lnr">213 </span>                        <span class="Statement">else</span> next(i + 1);
+<span class="lnr">214 </span>                    <span class="Identifier">}</span>
+<span class="lnr">215 </span>                );
+<span class="lnr">216 </span>            <span class="Identifier">}</span>).bind(<span class="Identifier">this</span>)(0);
+<span class="lnr">217 </span>        <span class="Identifier">}</span>);
+<span class="lnr">218 </span>    <span class="Identifier">}</span>;
+<span class="lnr">219 </span>
+<span class="lnr">220 </span>    <span class="Identifier">this</span>.parEach = <span class="Identifier">function</span> (limit, cb) <span class="Identifier">{</span>
+<span class="lnr">221 </span>        <span class="Identifier">var</span> xs = context.stack.slice();
+<span class="lnr">222 </span>        <span class="Statement">if</span> (cb === <span class="Statement">undefined</span>) <span class="Identifier">{</span> cb = limit; limit = xs.length <span class="Identifier">}</span>
+<span class="lnr">223 </span>        context.stack_ = <span class="Identifier">[]</span>;
+<span class="lnr">224 </span>
+<span class="lnr">225 </span>        <span class="Identifier">var</span> active = 0;
+<span class="lnr">226 </span>        <span class="Identifier">var</span> finished = 0;
+<span class="lnr">227 </span>        <span class="Identifier">var</span> queue = <span class="Identifier">[]</span>;
+<span class="lnr">228 </span>
+<span class="lnr">229 </span>        <span class="Statement">if</span> (xs.length === 0) saw.next()
+<span class="lnr">230 </span>        <span class="Statement">else</span> xs.forEach(<span class="Identifier">function</span> call (x, i) <span class="Identifier">{</span>
+<span class="lnr">231 </span>            <span class="Statement">if</span> (active &gt;= limit) <span class="Identifier">{</span>
+<span class="lnr">232 </span>                queue.push(call.bind(<span class="Identifier">this</span>, x, i));
+<span class="lnr">233 </span>            <span class="Identifier">}</span>
+<span class="lnr">234 </span>            <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">235 </span>                active ++;
+<span class="lnr">236 </span>                action(saw.step, i,
+<span class="lnr">237 </span>                    <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">238 </span>                        cb.call(<span class="Identifier">this</span>, x, i);
+<span class="lnr">239 </span>                    <span class="Identifier">}</span>,
+<span class="lnr">240 </span>                    <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">241 </span>                        active --;
+<span class="lnr">242 </span>                        finished ++;
+<span class="lnr">243 </span>                        <span class="Statement">if</span> (queue.length &gt; 0) queue.shift()();
+<span class="lnr">244 </span>                        <span class="Statement">else</span> <span class="Statement">if</span> (finished === xs.length) <span class="Identifier">{</span>
+<span class="lnr">245 </span>                            saw.next();
+<span class="lnr">246 </span>                        <span class="Identifier">}</span>
+<span class="lnr">247 </span>                    <span class="Identifier">}</span>
+<span class="lnr">248 </span>                );
+<span class="lnr">249 </span>            <span class="Identifier">}</span>
+<span class="lnr">250 </span>        <span class="Identifier">}</span>);
+<span class="lnr">251 </span>    <span class="Identifier">}</span>;
+<span class="lnr">252 </span>
+<span class="lnr">253 </span>    <span class="Identifier">this</span>.parMap = <span class="Identifier">function</span> (limit, cb) <span class="Identifier">{</span>
+<span class="lnr">254 </span>        <span class="Identifier">var</span> res = <span class="Identifier">[]</span>;
+<span class="lnr">255 </span>        <span class="Identifier">var</span> len = context.stack.length;
+<span class="lnr">256 </span>        <span class="Statement">if</span> (cb === <span class="Statement">undefined</span>) <span class="Identifier">{</span> cb = limit; limit = len <span class="Identifier">}</span>
+<span class="lnr">257 </span>        <span class="Identifier">var</span> res = <span class="Identifier">[]</span>;
+<span class="lnr">258 </span>
+<span class="lnr">259 </span>        Seq()
+<span class="lnr">260 </span>            .extend(context.stack)
+<span class="lnr">261 </span>            .parEach(limit, <span class="Identifier">function</span> (x, i) <span class="Identifier">{</span>
+<span class="lnr">262 </span>                <span class="Identifier">var</span> <span class="Statement">self</span> = <span class="Identifier">this</span>;
+<span class="lnr">263 </span>
+<span class="lnr">264 </span>                <span class="Identifier">var</span> next = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">265 </span>                    res<span class="Identifier">[</span>i<span class="Identifier">]</span> = <span class="Identifier">arguments</span><span class="Identifier">[</span>1<span class="Identifier">]</span>;
+<span class="lnr">266 </span>                    <span class="Statement">self</span>.apply(<span class="Statement">self</span>, <span class="Identifier">arguments</span>);
+<span class="lnr">267 </span>                <span class="Identifier">}</span>;
+<span class="lnr">268 </span>
+<span class="lnr">269 </span>                next.stack = <span class="Statement">self</span>.stack;
+<span class="lnr">270 </span>                next.stack_ = <span class="Statement">self</span>.stack_;
+<span class="lnr">271 </span>                next.vars = <span class="Statement">self</span>.vars;
+<span class="lnr">272 </span>                next.args = <span class="Statement">self</span>.args;
+<span class="lnr">273 </span>                next.error = <span class="Statement">self</span>.error;
+<span class="lnr">274 </span>
+<span class="lnr">275 </span>                next.into = <span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr">276 </span>                    <span class="Statement">return</span> <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">277 </span>                        res<span class="Identifier">[</span>key<span class="Identifier">]</span> = <span class="Identifier">arguments</span><span class="Identifier">[</span>1<span class="Identifier">]</span>;
+<span class="lnr">278 </span>                        <span class="Statement">self</span>.apply(<span class="Statement">self</span>, <span class="Identifier">arguments</span>);
+<span class="lnr">279 </span>                    <span class="Identifier">}</span>;
+<span class="lnr">280 </span>                <span class="Identifier">}</span>;
+<span class="lnr">281 </span>
+<span class="lnr">282 </span>                next.ok = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">283 </span>                    <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">284 </span>                    args.unshift(<span class="Statement">null</span>);
+<span class="lnr">285 </span>                    <span class="Statement">return</span> next.apply(next, args);
+<span class="lnr">286 </span>                <span class="Identifier">}</span>;
+<span class="lnr">287 </span>
+<span class="lnr">288 </span>                cb.apply(next, <span class="Identifier">arguments</span>);
+<span class="lnr">289 </span>            <span class="Identifier">}</span>)
+<span class="lnr">290 </span>            .seq(<span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">291 </span>                context.stack = res;
+<span class="lnr">292 </span>                saw.next();
+<span class="lnr">293 </span>            <span class="Identifier">}</span>)
+<span class="lnr">294 </span>        ;
+<span class="lnr">295 </span>    <span class="Identifier">}</span>;
+<span class="lnr">296 </span>
+<span class="lnr">297 </span>    <span class="Identifier">this</span>.seqMap = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">298 </span>        <span class="Identifier">var</span> res = <span class="Identifier">[]</span>;
+<span class="lnr">299 </span>        <span class="Identifier">var</span> len = context.stack.length;
+<span class="lnr">300 </span>
+<span class="lnr">301 </span>        <span class="Identifier">this</span>.seqEach(<span class="Identifier">function</span> (x, i) <span class="Identifier">{</span>
+<span class="lnr">302 </span>            <span class="Identifier">var</span> <span class="Statement">self</span> = <span class="Identifier">this</span>;
+<span class="lnr">303 </span>
+<span class="lnr">304 </span>            <span class="Identifier">var</span> next = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">305 </span>                res<span class="Identifier">[</span>i<span class="Identifier">]</span> = <span class="Identifier">arguments</span><span class="Identifier">[</span>1<span class="Identifier">]</span>;
+<span class="lnr">306 </span>                <span class="Statement">if</span> (i == len - 1) context.stack = res;
+<span class="lnr">307 </span>                <span class="Statement">self</span>.apply(<span class="Statement">self</span>, <span class="Identifier">arguments</span>);
+<span class="lnr">308 </span>            <span class="Identifier">}</span>;
+<span class="lnr">309 </span>
+<span class="lnr">310 </span>            next.stack = <span class="Statement">self</span>.stack;
+<span class="lnr">311 </span>            next.stack_ = <span class="Statement">self</span>.stack_;
+<span class="lnr">312 </span>            next.vars = <span class="Statement">self</span>.vars;
+<span class="lnr">313 </span>            next.args = <span class="Statement">self</span>.args;
+<span class="lnr">314 </span>            next.error = <span class="Statement">self</span>.error;
+<span class="lnr">315 </span>
+<span class="lnr">316 </span>            next.into = <span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr">317 </span>                <span class="Statement">return</span> <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">318 </span>                    res<span class="Identifier">[</span>key<span class="Identifier">]</span> = <span class="Identifier">arguments</span><span class="Identifier">[</span>1<span class="Identifier">]</span>;
+<span class="lnr">319 </span>                    <span class="Statement">self</span>.apply(<span class="Statement">self</span>, <span class="Identifier">arguments</span>);
+<span class="lnr">320 </span>                <span class="Identifier">}</span>;
+<span class="lnr">321 </span>            <span class="Identifier">}</span>;
+<span class="lnr">322 </span>
+<span class="lnr">323 </span>            next.ok = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">324 </span>                <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">325 </span>                args.unshift(<span class="Statement">null</span>);
+<span class="lnr">326 </span>                <span class="Statement">return</span> next.apply(next, args);
+<span class="lnr">327 </span>            <span class="Identifier">}</span>;
+<span class="lnr">328 </span>
+<span class="lnr">329 </span>            cb.apply(next, <span class="Identifier">arguments</span>);
+<span class="lnr">330 </span>        <span class="Identifier">}</span>);
+<span class="lnr">331 </span>    <span class="Identifier">}</span>;
+<span class="lnr">332 </span>
+<span class="lnr">333 </span>    <span class="Identifier">[</span> <span class="Constant">'forEach'</span>, <span class="Constant">'seqEach'</span>, <span class="Constant">'parEach'</span>, <span class="Constant">'seqMap'</span>, <span class="Constant">'parMap'</span> <span class="Identifier">]</span>
+<span class="lnr">334 </span>        .forEach(<span class="Identifier">function</span> (name) <span class="Identifier">{</span>
+<span class="lnr">335 </span>            <span class="Identifier">this</span><span class="Identifier">[</span>name + <span class="Constant">'_'</span><span class="Identifier">]</span> = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">336 </span>                <span class="Identifier">this</span><span class="Identifier">[</span>name<span class="Identifier">]</span>.call(<span class="Identifier">this</span>, <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">337 </span>                    <span class="Identifier">var</span> args = <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>);
+<span class="lnr">338 </span>                    args.unshift(<span class="Identifier">this</span>);
+<span class="lnr">339 </span>                    cb.apply(<span class="Identifier">this</span>, args);
+<span class="lnr">340 </span>                <span class="Identifier">}</span>);
+<span class="lnr">341 </span>            <span class="Identifier">}</span>;
+<span class="lnr">342 </span>        <span class="Identifier">}</span>, <span class="Identifier">this</span>)
+<span class="lnr">343 </span>    ;
+<span class="lnr">344 </span>
+<span class="lnr">345 </span>    <span class="Identifier">[</span><span class="Constant">'push'</span>,<span class="Constant">'pop'</span>,<span class="Constant">'shift'</span>,<span class="Constant">'unshift'</span>,<span class="Constant">'splice'</span><span class="Identifier">]</span>
+<span class="lnr">346 </span>        .forEach(<span class="Identifier">function</span> (name) <span class="Identifier">{</span>
+<span class="lnr">347 </span>            <span class="Identifier">this</span><span class="Identifier">[</span>name<span class="Identifier">]</span> = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">348 </span>                context.stack<span class="Identifier">[</span>name<span class="Identifier">]</span>.apply(
+<span class="lnr">349 </span>                    context.stack,
+<span class="lnr">350 </span>                    <span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>)
+<span class="lnr">351 </span>                );
+<span class="lnr">352 </span>                saw.next();
+<span class="lnr">353 </span>                <span class="Statement">return</span> <span class="Identifier">this</span>;
+<span class="lnr">354 </span>            <span class="Identifier">}</span>;
+<span class="lnr">355 </span>        <span class="Identifier">}</span>, <span class="Identifier">this</span>)
+<span class="lnr">356 </span>    ;
+<span class="lnr">357 </span>
+<span class="lnr">358 </span>    <span class="Identifier">this</span>.extend = <span class="Identifier">function</span> (xs) <span class="Identifier">{</span>
+<span class="lnr">359 </span>        <span class="Statement">if</span> (!<span class="Type">Array</span>.isArray(xs)) <span class="Identifier">{</span>
+<span class="lnr">360 </span>            <span class="Statement">throw</span> <span class="Statement">new</span> Error(<span class="Constant">'argument to .extend() is not an Array'</span>);
+<span class="lnr">361 </span>        <span class="Identifier">}</span>
+<span class="lnr">362 </span>        context.stack.push.apply(context.stack, xs);
+<span class="lnr">363 </span>        saw.next();
+<span class="lnr">364 </span>    <span class="Identifier">}</span>;
+<span class="lnr">365 </span>
+<span class="lnr">366 </span>    <span class="Identifier">this</span>.flatten = <span class="Identifier">function</span> (pancake) <span class="Identifier">{</span>
+<span class="lnr">367 </span>        <span class="Identifier">var</span> xs = <span class="Identifier">[]</span>;
+<span class="lnr">368 </span>        <span class="Comment">// should we fully flatten this array? (default: true)</span>
+<span class="lnr">369 </span>        <span class="Statement">if</span> (pancake === <span class="Statement">undefined</span>) <span class="Identifier">{</span> pancake = <span class="Constant">true</span>; <span class="Identifier">}</span>
+<span class="lnr">370 </span>        context.stack.forEach(<span class="Identifier">function</span> f (x) <span class="Identifier">{</span>
+<span class="lnr">371 </span>            <span class="Statement">if</span> (<span class="Type">Array</span>.isArray(x) &amp;&amp; pancake) x.forEach(f);
+<span class="lnr">372 </span>            <span class="Statement">else</span> <span class="Statement">if</span> (<span class="Type">Array</span>.isArray(x)) xs = xs.concat(x);
+<span class="lnr">373 </span>            <span class="Statement">else</span> xs.push(x);
+<span class="lnr">374 </span>        <span class="Identifier">}</span>);
+<span class="lnr">375 </span>        context.stack = xs;
+<span class="lnr">376 </span>        saw.next();
+<span class="lnr">377 </span>    <span class="Identifier">}</span>;
+<span class="lnr">378 </span>
+<span class="lnr">379 </span>    <span class="Identifier">this</span>.unflatten = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">380 </span>        context.stack = <span class="Identifier">[</span>context.stack<span class="Identifier">]</span>;
+<span class="lnr">381 </span>        saw.next();
+<span class="lnr">382 </span>    <span class="Identifier">}</span>;
+<span class="lnr">383 </span>
+<span class="lnr">384 </span>    <span class="Identifier">this</span>.empty = <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">385 </span>        context.stack = <span class="Identifier">[]</span>;
+<span class="lnr">386 </span>        saw.next();
+<span class="lnr">387 </span>    <span class="Identifier">}</span>;
+<span class="lnr">388 </span>
+<span class="lnr">389 </span>    <span class="Identifier">this</span>.set = <span class="Identifier">function</span> (stack) <span class="Identifier">{</span>
+<span class="lnr">390 </span>        context.stack = stack;
+<span class="lnr">391 </span>        saw.next();
+<span class="lnr">392 </span>    <span class="Identifier">}</span>;
+<span class="lnr">393 </span>
+<span class="lnr">394 </span>    <span class="Identifier">this</span><span class="Identifier">[</span><span class="Constant">'do'</span><span class="Identifier">]</span> = <span class="Identifier">function</span> (cb) <span class="Identifier">{</span>
+<span class="lnr">395 </span>        saw.nest(cb, context);
+<span class="lnr">396 </span>    <span class="Identifier">}</span>;
+<span class="lnr">397 </span><span class="Identifier">}</span>
+</pre>
+</body>
+</html>
