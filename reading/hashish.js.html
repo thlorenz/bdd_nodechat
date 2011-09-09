@@ -1,0 +1,280 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/Dropboxes/Gmail/Dropbox/dev/javascript/node/sourcetopdf/node_modules/seq/node_modules/hashish/index.js.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="javascript">
+<meta name="settings" content="use_css,number_lines">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #ffffff; background-color: #333333; }
+body { font-family: monospace; color: #ffffff; background-color: #333333; }
+.lnr { color: #ffff00; }
+.Comment { color: #87ceeb; }
+.Type { color: #bdb76b; font-weight: bold; }
+.Statement { color: #f0e68c; font-weight: bold; }
+.Constant { color: #ffa0a0; }
+.Identifier { color: #98fb98; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="lnr">  1 </span>module.exports = Hash;
+<span class="lnr">  2 </span><span class="Identifier">var</span> Traverse = require(<span class="Constant">'traverse'</span>);
+<span class="lnr">  3 </span>
+<span class="lnr">  4 </span><span class="Identifier">function</span> Hash (hash, xs) <span class="Identifier">{</span>
+<span class="lnr">  5 </span>    <span class="Statement">if</span> (<span class="Type">Array</span>.isArray(hash) &amp;&amp; <span class="Type">Array</span>.isArray(xs)) <span class="Identifier">{</span>
+<span class="lnr">  6 </span>        <span class="Identifier">var</span> to = Math.min(hash.length, xs.length);
+<span class="lnr">  7 </span>        <span class="Identifier">var</span> acc = <span class="Identifier">{}</span>;
+<span class="lnr">  8 </span>        <span class="Statement">for</span> (<span class="Identifier">var</span> i = 0; i &lt; to; i++) <span class="Identifier">{</span>
+<span class="lnr">  9 </span>            acc<span class="Identifier">[</span>hash<span class="Identifier">[</span>i<span class="Identifier">]]</span> = xs<span class="Identifier">[</span>i<span class="Identifier">]</span>;
+<span class="lnr"> 10 </span>        <span class="Identifier">}</span>
+<span class="lnr"> 11 </span>        <span class="Statement">return</span> Hash(acc);
+<span class="lnr"> 12 </span>    <span class="Identifier">}</span>
+<span class="lnr"> 13 </span>
+<span class="lnr"> 14 </span>    <span class="Statement">if</span> (hash === <span class="Statement">undefined</span>) <span class="Statement">return</span> Hash(<span class="Identifier">{}</span>);
+<span class="lnr"> 15 </span>
+<span class="lnr"> 16 </span>    <span class="Identifier">var</span> <span class="Statement">self</span> = <span class="Identifier">{</span>
+<span class="lnr"> 17 </span>        map : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr"> 18 </span>            <span class="Identifier">var</span> acc = <span class="Identifier">{</span> __proto__ : hash.__proto__ <span class="Identifier">}</span>;
+<span class="lnr"> 19 </span>            <span class="Type">Object</span>.keys(hash).forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr"> 20 </span>                acc<span class="Identifier">[</span>key<span class="Identifier">]</span> = f.call(<span class="Statement">self</span>, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key);
+<span class="lnr"> 21 </span>            <span class="Identifier">}</span>);
+<span class="lnr"> 22 </span>            <span class="Statement">return</span> Hash(acc);
+<span class="lnr"> 23 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 24 </span>        forEach : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr"> 25 </span>            <span class="Type">Object</span>.keys(hash).forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr"> 26 </span>                f.call(<span class="Statement">self</span>, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key);
+<span class="lnr"> 27 </span>            <span class="Identifier">}</span>);
+<span class="lnr"> 28 </span>            <span class="Statement">return</span> <span class="Statement">self</span>;
+<span class="lnr"> 29 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 30 </span>        filter : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr"> 31 </span>            <span class="Identifier">var</span> acc = <span class="Identifier">{</span> __proto__ : hash.__proto__ <span class="Identifier">}</span>;
+<span class="lnr"> 32 </span>            <span class="Type">Object</span>.keys(hash).forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr"> 33 </span>                <span class="Statement">if</span> (f.call(<span class="Statement">self</span>, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key)) <span class="Identifier">{</span>
+<span class="lnr"> 34 </span>                    acc<span class="Identifier">[</span>key<span class="Identifier">]</span> = hash<span class="Identifier">[</span>key<span class="Identifier">]</span>;
+<span class="lnr"> 35 </span>                <span class="Identifier">}</span>
+<span class="lnr"> 36 </span>            <span class="Identifier">}</span>);
+<span class="lnr"> 37 </span>            <span class="Statement">return</span> Hash(acc);
+<span class="lnr"> 38 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 39 </span>        detect : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr"> 40 </span>            <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> hash) <span class="Identifier">{</span>
+<span class="lnr"> 41 </span>                <span class="Statement">if</span> (f.call(<span class="Statement">self</span>, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key)) <span class="Identifier">{</span>
+<span class="lnr"> 42 </span>                    <span class="Statement">return</span> hash<span class="Identifier">[</span>key<span class="Identifier">]</span>;
+<span class="lnr"> 43 </span>                <span class="Identifier">}</span>
+<span class="lnr"> 44 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 45 </span>            <span class="Statement">return</span> <span class="Statement">undefined</span>;
+<span class="lnr"> 46 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 47 </span>        reduce : <span class="Identifier">function</span> (f, acc) <span class="Identifier">{</span>
+<span class="lnr"> 48 </span>            <span class="Identifier">var</span> keys = <span class="Type">Object</span>.keys(hash);
+<span class="lnr"> 49 </span>            <span class="Statement">if</span> (acc === <span class="Statement">undefined</span>) acc = keys.shift();
+<span class="lnr"> 50 </span>            keys.forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr"> 51 </span>                acc = f.call(<span class="Statement">self</span>, acc, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key);
+<span class="lnr"> 52 </span>            <span class="Identifier">}</span>);
+<span class="lnr"> 53 </span>            <span class="Statement">return</span> acc;
+<span class="lnr"> 54 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 55 </span>        some : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr"> 56 </span>            <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> hash) <span class="Identifier">{</span>
+<span class="lnr"> 57 </span>                <span class="Statement">if</span> (f.call(<span class="Statement">self</span>, hash<span class="Identifier">[</span>key<span class="Identifier">]</span>, key)) <span class="Statement">return</span> <span class="Constant">true</span>;
+<span class="lnr"> 58 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 59 </span>            <span class="Statement">return</span> <span class="Constant">false</span>;
+<span class="lnr"> 60 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 61 </span>        update : <span class="Identifier">function</span> (obj) <span class="Identifier">{</span>
+<span class="lnr"> 62 </span>            <span class="Statement">if</span> (<span class="Identifier">arguments</span>.length &gt; 1) <span class="Identifier">{</span>
+<span class="lnr"> 63 </span>                <span class="Statement">self</span>.updateAll(<span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>));
+<span class="lnr"> 64 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 65 </span>            <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr"> 66 </span>                <span class="Type">Object</span>.keys(obj).forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr"> 67 </span>                    hash<span class="Identifier">[</span>key<span class="Identifier">]</span> = obj<span class="Identifier">[</span>key<span class="Identifier">]</span>;
+<span class="lnr"> 68 </span>                <span class="Identifier">}</span>);
+<span class="lnr"> 69 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 70 </span>            <span class="Statement">return</span> <span class="Statement">self</span>;
+<span class="lnr"> 71 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 72 </span>        updateAll : <span class="Identifier">function</span> (xs) <span class="Identifier">{</span>
+<span class="lnr"> 73 </span>            xs.filter(<span class="Type">Boolean</span>).forEach(<span class="Identifier">function</span> (x) <span class="Identifier">{</span>
+<span class="lnr"> 74 </span>                <span class="Statement">self</span>.update(x);
+<span class="lnr"> 75 </span>            <span class="Identifier">}</span>);
+<span class="lnr"> 76 </span>            <span class="Statement">return</span> <span class="Statement">self</span>;
+<span class="lnr"> 77 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 78 </span>        merge : <span class="Identifier">function</span> (obj) <span class="Identifier">{</span>
+<span class="lnr"> 79 </span>            <span class="Statement">if</span> (<span class="Identifier">arguments</span>.length &gt; 1) <span class="Identifier">{</span>
+<span class="lnr"> 80 </span>                <span class="Statement">return</span> <span class="Statement">self</span>.copy.updateAll(<span class="Identifier">[]</span>.slice.call(<span class="Identifier">arguments</span>));
+<span class="lnr"> 81 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 82 </span>            <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr"> 83 </span>                <span class="Statement">return</span> <span class="Statement">self</span>.copy.update(obj);
+<span class="lnr"> 84 </span>            <span class="Identifier">}</span>
+<span class="lnr"> 85 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 86 </span>        mergeAll : <span class="Identifier">function</span> (xs) <span class="Identifier">{</span>
+<span class="lnr"> 87 </span>            <span class="Statement">return</span> <span class="Statement">self</span>.copy.updateAll(xs);
+<span class="lnr"> 88 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 89 </span>        has : <span class="Identifier">function</span> (key) <span class="Identifier">{</span> <span class="Comment">// only operates on enumerables</span>
+<span class="lnr"> 90 </span>            <span class="Statement">return</span> <span class="Type">Array</span>.isArray(key)
+<span class="lnr"> 91 </span>                ? key.every(<span class="Identifier">function</span> (k) <span class="Identifier">{</span> <span class="Statement">return</span> <span class="Statement">self</span>.has(k) <span class="Identifier">}</span>)
+<span class="lnr"> 92 </span>                : <span class="Statement">self</span>.keys.indexOf(key.toString()) &gt;= 0;
+<span class="lnr"> 93 </span>        <span class="Identifier">}</span>,
+<span class="lnr"> 94 </span>        valuesAt : <span class="Identifier">function</span> (keys) <span class="Identifier">{</span>
+<span class="lnr"> 95 </span>            <span class="Statement">return</span> <span class="Type">Array</span>.isArray(keys)
+<span class="lnr"> 96 </span>                ? keys.map(<span class="Identifier">function</span> (key) <span class="Identifier">{</span> <span class="Statement">return</span> hash<span class="Identifier">[</span>key<span class="Identifier">]</span> <span class="Identifier">}</span>)
+<span class="lnr"> 97 </span>                : hash<span class="Identifier">[</span>keys<span class="Identifier">]</span>
+<span class="lnr"> 98 </span>            ;
+<span class="lnr"> 99 </span>        <span class="Identifier">}</span>,
+<span class="lnr">100 </span>        tap : <span class="Identifier">function</span> (f) <span class="Identifier">{</span>
+<span class="lnr">101 </span>            f.call(<span class="Statement">self</span>, hash);
+<span class="lnr">102 </span>            <span class="Statement">return</span> <span class="Statement">self</span>;
+<span class="lnr">103 </span>        <span class="Identifier">}</span>,
+<span class="lnr">104 </span>        extract : <span class="Identifier">function</span> (keys) <span class="Identifier">{</span>
+<span class="lnr">105 </span>            <span class="Identifier">var</span> acc = <span class="Identifier">{}</span>;
+<span class="lnr">106 </span>            keys.forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr">107 </span>                acc<span class="Identifier">[</span>key<span class="Identifier">]</span> = hash<span class="Identifier">[</span>key<span class="Identifier">]</span>;
+<span class="lnr">108 </span>            <span class="Identifier">}</span>);
+<span class="lnr">109 </span>            <span class="Statement">return</span> Hash(acc);
+<span class="lnr">110 </span>        <span class="Identifier">}</span>,
+<span class="lnr">111 </span>        exclude : <span class="Identifier">function</span> (keys) <span class="Identifier">{</span>
+<span class="lnr">112 </span>            <span class="Statement">return</span> <span class="Statement">self</span>.filter(<span class="Identifier">function</span> (_, key) <span class="Identifier">{</span>
+<span class="lnr">113 </span>                <span class="Statement">return</span> keys.indexOf(key) &lt; 0
+<span class="lnr">114 </span>            <span class="Identifier">}</span>);
+<span class="lnr">115 </span>        <span class="Identifier">}</span>,
+<span class="lnr">116 </span>        end : hash,
+<span class="lnr">117 </span>        items : hash
+<span class="lnr">118 </span>    <span class="Identifier">}</span>;
+<span class="lnr">119 </span>
+<span class="lnr">120 </span>    <span class="Identifier">var</span> props = <span class="Identifier">{</span>
+<span class="lnr">121 </span>        keys : <span class="Identifier">function</span> () <span class="Identifier">{</span> <span class="Statement">return</span> <span class="Type">Object</span>.keys(hash) <span class="Identifier">}</span>,
+<span class="lnr">122 </span>        values : <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">123 </span>            <span class="Statement">return</span> <span class="Type">Object</span>.keys(hash).map(<span class="Identifier">function</span> (key) <span class="Identifier">{</span> <span class="Statement">return</span> hash<span class="Identifier">[</span>key<span class="Identifier">]</span> <span class="Identifier">}</span>);
+<span class="lnr">124 </span>        <span class="Identifier">}</span>,
+<span class="lnr">125 </span>        compact : <span class="Identifier">function</span> () <span class="Identifier">{</span>
+<span class="lnr">126 </span>            <span class="Statement">return</span> <span class="Statement">self</span>.filter(<span class="Identifier">function</span> (x) <span class="Identifier">{</span> <span class="Statement">return</span> x !== <span class="Statement">undefined</span> <span class="Identifier">}</span>);
+<span class="lnr">127 </span>        <span class="Identifier">}</span>,
+<span class="lnr">128 </span>        clone : <span class="Identifier">function</span> () <span class="Identifier">{</span> <span class="Statement">return</span> Hash(Hash.clone(hash)) <span class="Identifier">}</span>,
+<span class="lnr">129 </span>        copy : <span class="Identifier">function</span> () <span class="Identifier">{</span> <span class="Statement">return</span> Hash(Hash.copy(hash)) <span class="Identifier">}</span>,
+<span class="lnr">130 </span>        length : <span class="Identifier">function</span> () <span class="Identifier">{</span> <span class="Statement">return</span> <span class="Type">Object</span>.keys(hash).length <span class="Identifier">}</span>,
+<span class="lnr">131 </span>        size : <span class="Identifier">function</span> () <span class="Identifier">{</span> <span class="Statement">return</span> <span class="Statement">self</span>.length <span class="Identifier">}</span>
+<span class="lnr">132 </span>    <span class="Identifier">}</span>;
+<span class="lnr">133 </span>
+<span class="lnr">134 </span>    <span class="Statement">if</span> (<span class="Type">Object</span>.defineProperty) <span class="Identifier">{</span>
+<span class="lnr">135 </span>        <span class="Comment">// es5-shim has an Object.defineProperty but it throws for getters</span>
+<span class="lnr">136 </span>        <span class="Statement">try</span> <span class="Identifier">{</span>
+<span class="lnr">137 </span>            <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> props) <span class="Identifier">{</span>
+<span class="lnr">138 </span>                <span class="Type">Object</span>.defineProperty(<span class="Statement">self</span>, key, <span class="Identifier">{</span> get : props<span class="Identifier">[</span>key<span class="Identifier">]</span> <span class="Identifier">}</span>);
+<span class="lnr">139 </span>            <span class="Identifier">}</span>
+<span class="lnr">140 </span>        <span class="Identifier">}</span>
+<span class="lnr">141 </span>        <span class="Statement">catch</span> (err) <span class="Identifier">{</span>
+<span class="lnr">142 </span>            <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> props) <span class="Identifier">{</span>
+<span class="lnr">143 </span>                <span class="Statement">if</span> (key !== <span class="Constant">'clone'</span> &amp;&amp; key !== <span class="Constant">'copy'</span> &amp;&amp; key !== <span class="Constant">'compact'</span>) <span class="Identifier">{</span>
+<span class="lnr">144 </span>                    <span class="Comment">// ^ those keys use Hash() so can't call them without</span>
+<span class="lnr">145 </span>                    <span class="Comment">// a stack overflow</span>
+<span class="lnr">146 </span>                    <span class="Statement">self</span><span class="Identifier">[</span>key<span class="Identifier">]</span> = props<span class="Identifier">[</span>key<span class="Identifier">]</span>();
+<span class="lnr">147 </span>                <span class="Identifier">}</span>
+<span class="lnr">148 </span>            <span class="Identifier">}</span>
+<span class="lnr">149 </span>        <span class="Identifier">}</span>
+<span class="lnr">150 </span>    <span class="Identifier">}</span>
+<span class="lnr">151 </span>    <span class="Statement">else</span> <span class="Statement">if</span> (<span class="Statement">self</span>.__defineGetter__) <span class="Identifier">{</span>
+<span class="lnr">152 </span>        <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> props) <span class="Identifier">{</span>
+<span class="lnr">153 </span>            <span class="Statement">self</span>.__defineGetter__(key, props<span class="Identifier">[</span>key<span class="Identifier">]</span>);
+<span class="lnr">154 </span>        <span class="Identifier">}</span>
+<span class="lnr">155 </span>    <span class="Identifier">}</span>
+<span class="lnr">156 </span>    <span class="Statement">else</span> <span class="Identifier">{</span>
+<span class="lnr">157 </span>        <span class="Comment">// non-lazy version for browsers that suck &gt;_&lt;</span>
+<span class="lnr">158 </span>        <span class="Statement">for</span> (<span class="Identifier">var</span> key <span class="Statement">in</span> props) <span class="Identifier">{</span>
+<span class="lnr">159 </span>            <span class="Statement">self</span><span class="Identifier">[</span>key<span class="Identifier">]</span> = props<span class="Identifier">[</span>key<span class="Identifier">]</span>();
+<span class="lnr">160 </span>        <span class="Identifier">}</span>
+<span class="lnr">161 </span>    <span class="Identifier">}</span>
+<span class="lnr">162 </span>
+<span class="lnr">163 </span>    <span class="Statement">return</span> <span class="Statement">self</span>;
+<span class="lnr">164 </span><span class="Identifier">}</span>;
+<span class="lnr">165 </span>
+<span class="lnr">166 </span><span class="Comment">// deep copy</span>
+<span class="lnr">167 </span>Hash.clone = <span class="Identifier">function</span> (ref) <span class="Identifier">{</span>
+<span class="lnr">168 </span>    <span class="Statement">return</span> Traverse.clone(ref);
+<span class="lnr">169 </span><span class="Identifier">}</span>;
+<span class="lnr">170 </span>
+<span class="lnr">171 </span><span class="Comment">// shallow copy</span>
+<span class="lnr">172 </span>Hash.copy = <span class="Identifier">function</span> (ref) <span class="Identifier">{</span>
+<span class="lnr">173 </span>    <span class="Identifier">var</span> hash = <span class="Identifier">{</span> __proto__ : ref.__proto__ <span class="Identifier">}</span>;
+<span class="lnr">174 </span>    <span class="Type">Object</span>.keys(ref).forEach(<span class="Identifier">function</span> (key) <span class="Identifier">{</span>
+<span class="lnr">175 </span>        hash<span class="Identifier">[</span>key<span class="Identifier">]</span> = ref<span class="Identifier">[</span>key<span class="Identifier">]</span>;
+<span class="lnr">176 </span>    <span class="Identifier">}</span>);
+<span class="lnr">177 </span>    <span class="Statement">return</span> hash;
+<span class="lnr">178 </span><span class="Identifier">}</span>;
+<span class="lnr">179 </span>
+<span class="lnr">180 </span>Hash.map = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">181 </span>    <span class="Statement">return</span> Hash(ref).map(f).items;
+<span class="lnr">182 </span><span class="Identifier">}</span>;
+<span class="lnr">183 </span>
+<span class="lnr">184 </span>Hash.forEach = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">185 </span>    Hash(ref).forEach(f);
+<span class="lnr">186 </span><span class="Identifier">}</span>;
+<span class="lnr">187 </span>
+<span class="lnr">188 </span>Hash.filter = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">189 </span>    <span class="Statement">return</span> Hash(ref).filter(f).items;
+<span class="lnr">190 </span><span class="Identifier">}</span>;
+<span class="lnr">191 </span>
+<span class="lnr">192 </span>Hash.detect = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">193 </span>    <span class="Statement">return</span> Hash(ref).detect(f);
+<span class="lnr">194 </span><span class="Identifier">}</span>;
+<span class="lnr">195 </span>
+<span class="lnr">196 </span>Hash.reduce = <span class="Identifier">function</span> (ref, f, acc) <span class="Identifier">{</span>
+<span class="lnr">197 </span>    <span class="Statement">return</span> Hash(ref).reduce(f, acc);
+<span class="lnr">198 </span><span class="Identifier">}</span>;
+<span class="lnr">199 </span>
+<span class="lnr">200 </span>Hash.some = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">201 </span>    <span class="Statement">return</span> Hash(ref).some(f);
+<span class="lnr">202 </span><span class="Identifier">}</span>;
+<span class="lnr">203 </span>
+<span class="lnr">204 </span>Hash.update = <span class="Identifier">function</span> (a <span class="Comment">/*, b, c, ... */</span>) <span class="Identifier">{</span>
+<span class="lnr">205 </span>    <span class="Identifier">var</span> args = <span class="Type">Array</span>.prototype.slice.call(<span class="Identifier">arguments</span>, 1);
+<span class="lnr">206 </span>    <span class="Identifier">var</span> hash = Hash(a);
+<span class="lnr">207 </span>    <span class="Statement">return</span> hash.update.apply(hash, args).items;
+<span class="lnr">208 </span><span class="Identifier">}</span>;
+<span class="lnr">209 </span>
+<span class="lnr">210 </span>Hash.merge = <span class="Identifier">function</span> (a <span class="Comment">/*, b, c, ... */</span>) <span class="Identifier">{</span>
+<span class="lnr">211 </span>    <span class="Identifier">var</span> args = <span class="Type">Array</span>.prototype.slice.call(<span class="Identifier">arguments</span>, 1);
+<span class="lnr">212 </span>    <span class="Identifier">var</span> hash = Hash(a);
+<span class="lnr">213 </span>    <span class="Statement">return</span> hash.merge.apply(hash, args).items;
+<span class="lnr">214 </span><span class="Identifier">}</span>;
+<span class="lnr">215 </span>
+<span class="lnr">216 </span>Hash.has = <span class="Identifier">function</span> (ref, key) <span class="Identifier">{</span>
+<span class="lnr">217 </span>    <span class="Statement">return</span> Hash(ref).has(key);
+<span class="lnr">218 </span><span class="Identifier">}</span>;
+<span class="lnr">219 </span>
+<span class="lnr">220 </span>Hash.valuesAt = <span class="Identifier">function</span> (ref, keys) <span class="Identifier">{</span>
+<span class="lnr">221 </span>    <span class="Statement">return</span> Hash(ref).valuesAt(keys);
+<span class="lnr">222 </span><span class="Identifier">}</span>;
+<span class="lnr">223 </span>
+<span class="lnr">224 </span>Hash.tap = <span class="Identifier">function</span> (ref, f) <span class="Identifier">{</span>
+<span class="lnr">225 </span>    <span class="Statement">return</span> Hash(ref).tap(f).items;
+<span class="lnr">226 </span><span class="Identifier">}</span>;
+<span class="lnr">227 </span>
+<span class="lnr">228 </span>Hash.extract = <span class="Identifier">function</span> (ref, keys) <span class="Identifier">{</span>
+<span class="lnr">229 </span>    <span class="Statement">return</span> Hash(ref).extract(keys).items;
+<span class="lnr">230 </span><span class="Identifier">}</span>;
+<span class="lnr">231 </span>
+<span class="lnr">232 </span>Hash.exclude = <span class="Identifier">function</span> (ref, keys) <span class="Identifier">{</span>
+<span class="lnr">233 </span>    <span class="Statement">return</span> Hash(ref).exclude(keys).items;
+<span class="lnr">234 </span><span class="Identifier">}</span>;
+<span class="lnr">235 </span>
+<span class="lnr">236 </span>Hash.concat = <span class="Identifier">function</span> (xs) <span class="Identifier">{</span>
+<span class="lnr">237 </span>    <span class="Identifier">var</span> hash = Hash(<span class="Identifier">{}</span>);
+<span class="lnr">238 </span>    xs.forEach(<span class="Identifier">function</span> (x) <span class="Identifier">{</span> hash.update(x) <span class="Identifier">}</span>);
+<span class="lnr">239 </span>    <span class="Statement">return</span> hash.items;
+<span class="lnr">240 </span><span class="Identifier">}</span>;
+<span class="lnr">241 </span>
+<span class="lnr">242 </span>Hash.zip = <span class="Identifier">function</span> (xs, ys) <span class="Identifier">{</span>
+<span class="lnr">243 </span>    <span class="Statement">return</span> Hash(xs, ys).items;
+<span class="lnr">244 </span><span class="Identifier">}</span>;
+<span class="lnr">245 </span>
+<span class="lnr">246 </span><span class="Comment">// .length is already defined for function prototypes</span>
+<span class="lnr">247 </span>Hash.size = <span class="Identifier">function</span> (ref) <span class="Identifier">{</span>
+<span class="lnr">248 </span>    <span class="Statement">return</span> Hash(ref).size;
+<span class="lnr">249 </span><span class="Identifier">}</span>;
+<span class="lnr">250 </span>
+<span class="lnr">251 </span>Hash.compact = <span class="Identifier">function</span> (ref) <span class="Identifier">{</span>
+<span class="lnr">252 </span>    <span class="Statement">return</span> Hash(ref).compact.items;
+<span class="lnr">253 </span><span class="Identifier">}</span>;
+</pre>
+</body>
+</html>
